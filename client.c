@@ -38,12 +38,15 @@ void game()
     char option;
     char position[2];
 
-    do
+    while(1)
     {
         draw_field();
 
         printf("Select option <P, R, Q>: ");
         scanf(" %c", &option);
+
+        if(option == 'Q')
+            return;
 
         printf("Select position: ");
         scanf(" %s2", position);
@@ -52,16 +55,37 @@ void game()
         int y_pos = ((int) position[0]) - 65;
 
         update_tile(x_pos, y_pos, '+');
-    } while(option != 'Q');
+    }
 }
 
 void login()
 {
     printf
     (
-        "====================\n"
-        "Welcome to the online Minesweeper gaming system\n"
-        "====================\n"
+        "Welcome to the online Minesweeper gaming system\n\n"
+        "             . . .                         \n"
+        "              \\|/                          \n"
+        "            `--+--'                        \n"
+        "              /|\\                          \n"
+        "             ' | '                         \n"
+        "               |                           \n"
+        "               |                           \n"
+        "           ,--'#`--.                       \n"
+        "           |#######|                       \n"
+        "        _.-'#######`-._                    \n"
+        "     ,-'###############`-.                 \n"
+        "   ,'#####################`,               \n"
+        "  /#########################\\              \n"
+        " |###########################|             \n"
+        "|#############################|            \n"
+        "|#############################|            \n"
+        "|#############################|            \n"
+        "|#############################|            \n"
+        " |###########################|             \n"
+        "  \\#########################/              \n"
+        "   `.#####################,'               \n"
+        "     `._###############_,'                 \n"
+        "        `--..#####..--'\n\n"
         "You are required to login with your registered username and password.\n\n"
     );
 
@@ -99,7 +123,7 @@ int main(int argc, char* argv[])
     int port = atoi(argv[2]);
 
     printf("\nConnecting to %s:%d...\n\n", ip_address, port);
-
+    
     login();
     int selection = menu();
 
@@ -117,6 +141,8 @@ int main(int argc, char* argv[])
             return 0;
             break;
     }
+
+    printf("\nThanks for playing!\n");
 
     return 0;
 }
