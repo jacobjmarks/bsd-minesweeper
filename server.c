@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <string.h>
 #include "constants.h"
 #include "tile.h"
 
@@ -65,6 +66,26 @@ void serve_client() {
     while (true) {
         // Listen
     }
+}
+
+bool authenticate(char* user, char* pass) {
+    bool authenticated = false;
+
+    FILE* auth_file = fopen("authentication.tsv", "r");
+
+    char line[255];
+    fgets(line, sizeof(line), auth_file); // Skip first line
+    while (fgets(line, sizeof(line), auth_file) != NULL) {
+        bool user_match = strcmp(user, strtok(line, "\t")) == 0;
+        bool pass_match = strcmp(pass, strtok(NULL, "\n")) == 0;
+        if (user_match && pass_match) {
+            authenticated = true;
+            break;
+        }
+    }
+    fclose(auth_file);
+
+    return authenticated;
 }
 
 int main(int argc, char* argv[]) {
