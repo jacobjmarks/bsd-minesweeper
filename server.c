@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "constants.h"
 #include "tile.h"
+#include "protocol.h"
 
 #define NUM_MINES 10
 
@@ -141,15 +142,23 @@ int main(int argc, char* argv[]) {
     while (true) {
         char buffer[1024] = {0};
         valread = read(new_socket, buffer, 1024);
-            
-        char* user = strtok(buffer, "\t");
-        char* pass = strtok(NULL, "\n");
 
-        printf("%s %s\n", user, pass);
+        int protocol = buffer[0] - '0';
 
-        int response = htonl(authenticate(user, pass));
+        switch (protocol) {
+            case LOGIN:;
+                char* user = strtok(buffer + 1, "\t");
+                char* pass = strtok(NULL, "\n");
 
-        send(new_socket, &response, sizeof(response), 0);
+                printf("%s %s\n", user, pass);
+
+                int response = htonl(authenticate(user, pass));
+
+                send(new_socket, &response, sizeof(response), 0);
+                break;
+            default:;
+                break;
+        }
     }
 
     return 0;
