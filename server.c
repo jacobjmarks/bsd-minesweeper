@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "constants.h"
 #include "tile.h"
 #include "protocol.h"
@@ -106,7 +107,10 @@ GameState* create_gamestate() {
     return gs;
 }
 
-void client_thread(int sock) {
+void* client_thread(void* data) {
+    int sock = *(int*)data;
+    free(data);
+
     GameState* gs = create_gamestate();
 
     while (true) {
@@ -174,7 +178,10 @@ int main(int argc, char* argv[]) {
                 bool authenticated = authenticate(user, pass);
 
                 if (authenticated) {
-                    // create thread
+                    int* data = malloc(sizeof(*data));
+                    *data = sock;
+                    pthread_t pid;
+                    pthread_create(&pid, NULL, client_thread, data);
                     create_new_client = true;
                 }
 
