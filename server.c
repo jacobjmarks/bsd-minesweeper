@@ -113,10 +113,11 @@ void* client_thread(void* data) {
 
     GameState* gs = create_gamestate();
 
+    printf("Thread: Listening...\n");
     while (true) {
-        char response[100];
-        read(sock, response, strlen(response));
-        int protocol = response[0] - '0';
+        char request[100];
+        read(sock, request, 100);
+        int protocol = request[0] - '0';
 
         switch (protocol) {
             case REVEAL_TILE:;
@@ -162,32 +163,46 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         if (create_new_client) {
+            printf("Waiting for socket connection...\n");
             sock = create_socket();
-            create_new_client = false;
+            printf("New client listening...\n");
         }
+        create_new_client = false;
 
-        char response[100];
-        read(sock, response, strlen(response));
-        int protocol = response[0] - '0';
+        char request[100];
+        read(sock, request, 100);
+        int protocol = request[0] - '0';
 
+        printf("Serving {\n");
+        printf("    Protocol: %d\n", protocol);
+        printf("    Message:  %s\n", request + 1);
+        printf("}\n");
+        
         switch (protocol) {
             case LOGIN:;
-                char* user = strtok(response + 1, "\t");
+                char* user = strtok(request + 1, "\t");
                 char* pass = strtok(NULL, "\n");
 
+                printf("Authenticating %s:%s...", user, pass);
                 bool authenticated = authenticate(user, pass);
 
                 if (authenticated) {
+                    printf("Granted\n");
+                    printf("Creating new client thread...");
                     int* data = malloc(sizeof(*data));
                     *data = sock;
                     pthread_t pid;
                     pthread_create(&pid, NULL, client_thread, data);
+                    printf("Done\n");
                     create_new_client = true;
+                } else {
+                    printf("Denied\n");
                 }
 
-                char response[100];
+                char response[100] = {0};
                 strcat(response, authenticated ? "1" : "0");
-                send(sock, &response, strlen(response), 0);
+                printf("Responding: %s\n", response);
+                send(sock, &response, 100, 0);
                 break;
             default:;
                 break;
