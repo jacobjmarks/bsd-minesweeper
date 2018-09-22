@@ -13,8 +13,8 @@ typedef struct {
 
 void print_tile_state(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     printf("[adjacent_mines revealed is_mine]\n");
-    for (int x = 0; x < NUM_TILES_X; x++) {
-        for (int y = 0; y < NUM_TILES_Y; y++) {
+    for (int y = 0; y < NUM_TILES_Y; y++) {
+        for (int x = 0; x < NUM_TILES_X; x++) {
             Tile tile = tiles[x][y];
             printf("[%d %d %d] ", tile.adjacent_mines, tile.revealed, tile.is_mine);
         }
@@ -37,10 +37,28 @@ void place_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
+void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
+    for (int y = 0; y < NUM_TILES_Y; y++) {
+        for (int x = 0; x < NUM_TILES_X; x++) {
+            Tile* tile = &tiles[x][y];
+            int adjacent_mines = 0;
+            for (int i = -1; i < 2; i++) {
+                for (int j = -1; j < 2; j++) {
+                    if (x+i < 0 || x+i > NUM_TILES_X) continue;
+                    if (y+j < 0 || y+j > NUM_TILES_Y) continue;
+                    if (tiles[x+i][y+j].is_mine) adjacent_mines++;
+                }
+            }
+            tile->adjacent_mines = adjacent_mines;
+        }
+    }
+}
+
 void serve_client() {
     GameState* gs = malloc(sizeof(GameState));
 
     place_mines(gs->tiles);
+    set_adjacent_mines(gs->tiles);
 
     print_tile_state(gs->tiles);
 
