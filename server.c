@@ -13,11 +13,14 @@ typedef struct {
 void place_mines(Tile*** tiles) {
     for (int i = 0; i < NUM_MINES; i++) {
         int x_pos, y_pos;
+        Tile tile;
+
         do {
             x_pos = rand() % NUM_TILES_X;
             y_pos = rand() % NUM_TILES_Y;
-        } while (tile_contains_mine(x_pos, y_pos));
-        Tile tile = *tiles[x_pos][y_pos];
+            tile = *tiles[x_pos][y_pos];
+        } while(tile.is_mine);
+
         tile.is_mine = true;
     }
 }
