@@ -1,21 +1,34 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define WIDTH 10
-#define HEIGHT 10
-char field[WIDTH][HEIGHT];
+#define NUM_TILES_X 9
+#define NUM_TILES_Y 9
+char field[NUM_TILES_X][NUM_TILES_Y];
 
 void draw_field()
 {
-    printf(" ");
-    for (int i = 0; i < WIDTH; i++) printf(" %d", i);
-    printf("\n");
-    for (int i = 0; i < WIDTH * 2 + 1; i++) printf("-");
     printf("\n");
 
-    for (int i = 0; i < HEIGHT; i++) {
+    for (int i = 0; i < NUM_TILES_X; i++)
+    {
+        printf(" %d", i);
+    }
+    printf("\n");
+
+    for (int i = 0; i < NUM_TILES_X * 2 + 1; i++)
+    {
+        printf("-");
+    }
+    printf("\n");
+
+    for (int i = 0; i < NUM_TILES_Y; i++)
+    {
         printf("%c|", 65 + i);
-        for (int j = 0; j < WIDTH; j++) printf("%c", field[i][j]);
+        for (int j = 0; j < NUM_TILES_X; j++)
+        {
+            printf("%c", field[i][j]);   
+        }
         printf("\n");
     }
 }
