@@ -12,6 +12,8 @@
 
 #define NUM_MINES 10
 
+int port;
+
 typedef struct {
     Tile tiles[NUM_TILES_X][NUM_TILES_Y];
 } GameState;
@@ -59,16 +61,65 @@ void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
-void serve_client() {
-    GameState* gs = malloc(sizeof(GameState));
+int create_socket() {
+    int server_fd, new_socket;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
 
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(port);
+
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
+    return new_socket;
+}
+
+GameState* create_gamestate() {
+    GameState* gs = malloc(sizeof(GameState));
     place_mines(gs->tiles);
     set_adjacent_mines(gs->tiles);
+    return gs;
+}
 
-    print_tile_state(gs->tiles);
+void client_thread(int sock) {
+    GameState* gs = create_gamestate();
 
     while (true) {
-        // Listen
+        char response[100];
+        read(sock, response, strlen(response));
+        int protocol = response[0] - '0';
+
+        switch (protocol) {
+            case REVEAL_TILE:;
+                break;
+            default:;
+                break;
+        }
     }
 }
 
@@ -100,61 +151,36 @@ int main(int argc, char* argv[]) {
     
     srand(time(NULL));
 
-    const int port = atoi(argv[1]);
+    port = atoi(argv[1]);
 
-    int server_fd, new_socket, valread;
-    struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
-       
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-    
-    // Forcefully attaching socket to the port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
-
-    // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-
-    if (listen(server_fd, 3) < 0) {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
+    bool create_new_client = true;
+    int sock;
 
     while (true) {
-        char buffer[1024] = {0};
-        valread = read(new_socket, buffer, 1024);
+        if (create_new_client) {
+            sock = create_socket();
+            create_new_client = false;
+        }
 
-        int protocol = buffer[0] - '0';
+        char response[100];
+        read(sock, response, strlen(response));
+        int protocol = response[0] - '0';
 
         switch (protocol) {
             case LOGIN:;
-                char* user = strtok(buffer + 1, "\t");
+                char* user = strtok(response + 1, "\t");
                 char* pass = strtok(NULL, "\n");
 
-                printf("%s %s\n", user, pass);
+                bool authenticated = authenticate(user, pass);
 
-                int response = htonl(authenticate(user, pass));
+                if (authenticated) {
+                    // create thread
+                    create_new_client = true;
+                }
 
-                send(new_socket, &response, sizeof(response), 0);
+                char response[100];
+                strcat(response, authenticated ? "1" : "0");
+                send(sock, &response, strlen(response), 0);
                 break;
             default:;
                 break;
