@@ -13,7 +13,7 @@ void update_tile(int x, int y, char c)
 
 void draw_field()
 {
-    printf("\n ");
+    printf("\n\n\nRemaining mines: %d\n\n ", 10);
 
     for (int x = 0; x < NUM_TILES_X; x++)
         printf(" %d", x+1);
@@ -30,6 +30,7 @@ void draw_field()
             printf("%c ", field[x][y]);   
         printf("\n");
     }
+    printf("\n");
 }
 
 void game()
@@ -39,6 +40,8 @@ void game()
 
     do
     {
+        draw_field();
+
         printf("Select option <P, R, Q>: ");
         scanf(" %c", &option);
 
@@ -50,24 +53,27 @@ void game()
 
         update_tile(x_pos, y_pos, '+');
 
-        draw_field();
+
     } while(option != 'Q');
 }
 
 void login()
 {
-    printf("====================\n");
-    printf("Welcome to the online Minesweeper gaming system\n");
-    printf("====================\n\n");
-    printf("You are required to login with your registered username and password.\n\n");
-    
-    char username[255];
-    char password[255];
+    printf
+    (
+        "====================\n"
+        "Welcome to the online Minesweeper gaming system\n"
+        "====================\n"
+        "You are required to login with your registered username and password.\n\n"
+    );
+
+    char username[10];
+    char password[10];
 
     printf("Enter your username: ");
-    scanf(" %255s", username);  
+    scanf(" %10s", username);  
     printf("Enter your password: ");
-    scanf(" %255s", password);
+    scanf(" %10s", password);
 }
 
 int menu()
@@ -99,8 +105,7 @@ int main(int argc, char* argv[])
     char* ip_address = argv[1];
     int port = atoi(argv[2]);
 
-    printf("ip_address: %s\n", ip_address);
-    printf("port: %d\n", port);
+    printf("Connecting to %s:%d...\n\n", ip_address, port);
 
     login();
     int selection = menu();
