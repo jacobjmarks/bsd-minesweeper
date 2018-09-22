@@ -1,9 +1,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "constants.h"
+#include "structs.h"
 
-#define NUM_TILES_X 9
-#define NUM_TILES_Y 9
 char field[NUM_TILES_X][NUM_TILES_Y];
 
 void draw_field()
