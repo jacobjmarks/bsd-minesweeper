@@ -63,57 +63,19 @@ void game()
     }
 }
 
-void login(int* sock)
+int spunk(int sock, int protocol, char* message, char* response)
 {
-    printf
-    (
-        "You are required to login with your registered username and password.\n\n"
-    );
-
-    char username[10];
-    char password[10];
-    char message[23];
-
-    message[0] = '0';
-
-    int authenticated;
-    do
-    {
-        printf("Enter your username: ");
-        scanf(" %10s", username);  
-        printf("Enter your password: ");
-        scanf(" %10s", password);
-
-        strncat(message, username, 10);
-        strncat(message, "\t", 2);
-        strncat(message, password, 10);
-
-        printf("Sending %s\n", message);
-
-        send(*sock, message, strlen(message), 0);
-        read(*sock, &authenticated, sizeof(authenticated)); 
-        printf("%d\n", ntohl(authenticated));
-    } while (authenticated == 0);
+    char packet[BUFFER_SIZE];
+    packet[0] = protocol + '0';
+    strncat(packet, message, 50);
+    printf("Sending %s with size %d on sock %d\n", packet, BUFFER_SIZE, sock);
+    write(sock, packet, BUFFER_SIZE);
+    read(sock, &response, BUFFER_SIZE);
+    int status = 0;
+    return status;
 }
 
-int menu()
-{
-    printf("\nWelcome to the Minesweeper gaming system.\n\n");
-    printf("Please enter a selection:\n");
-    printf("<1> Play Minesweeper\n");
-    printf("<2> Show Leaderboard\n");
-    printf("<3> Quit\n\n");
-
-    int selection;
-    do
-    {
-        printf("Selection option (1-3): ");
-        scanf("%d", &selection);
-    } while (selection < 1 || selection > 3);
-    return selection;
-}
-
-int _connect(char* ip, int port)
+int login(char* ip, int port)
 {
     printf("\nConnecting to %s:%d...\n", ip, port);
     
@@ -121,7 +83,6 @@ int _connect(char* ip, int port)
     struct sockaddr_in serv_addr; 
     
     int sock = 0;
-    int valread;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     { 
@@ -146,23 +107,63 @@ int _connect(char* ip, int port)
     }
 
     printf(" Connection established.\n");
+
+    printf
+    (
+        "You are required to login with your registered username and password.\n\n"
+    );
+
+    char username[10];
+    char password[10];
+    char message[10 + 2 + 10];
+
+    printf("Enter your username: ");
+    scanf(" %10s", username);  
+    printf("Enter your password: ");
+    scanf(" %10s", password);
+
+    strncat(message, username, 10);
+    strncat(message, "\t", 2);
+    strncat(message, password, 10);
+
+    char buffer[BUFFER_SIZE];
+    spunk(sock, LOGIN, message, buffer);
+    printf("Response: %s", buffer);
+
     return sock;
+}
+
+int menu()
+{
+    printf("\nWelcome to the Minesweeper gaming system.\n\n");
+    printf("Please enter a selection:\n");
+    printf("<1> Play Minesweeper\n");
+    printf("<2> Show Leaderboard\n");
+    printf("<3> Quit\n\n");
+
+    int selection;
+    do
+    {
+        printf("Selection option (1-3): ");
+        scanf("%d", &selection);
+    } while (selection < 1 || selection > 3);
+    return selection;
 }
 
 int main(int argc, char* argv[])
 {
+
+    // char response[100];
+    // printf("%d\n", strlen(response));
+
     char* ip = argv[1];
     int port = atoi(argv[2]);
-
-    int sock = _connect(ip, port);
-    login(&sock);
-
-    int selection = menu();
-
-    switch (selection)
+    int sock = login(ip, port);
+ 
+    switch (menu())
     {
         case 1:
-            game();
+            game(&sock);
             break;
 
         case 2:
