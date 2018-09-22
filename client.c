@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "constants.h"
-#include "structs.h"
+#include "tile.h"
 
 char field[NUM_TILES_X][NUM_TILES_Y];
 
