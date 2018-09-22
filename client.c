@@ -6,31 +6,52 @@
 
 char field[NUM_TILES_X][NUM_TILES_Y];
 
+void update_tile(int x, int y, char c)
+{
+    field[x][y] = c;
+}
+
 void draw_field()
 {
+    printf("\n ");
+
+    for (int x = 0; x < NUM_TILES_X; x++)
+        printf(" %d", x+1);
     printf("\n");
 
-    for (int i = 0; i < NUM_TILES_X; i++)
-    {
-        printf(" %d", i);
-    }
-    printf("\n");
-
-    for (int i = 0; i < NUM_TILES_X * 2 + 1; i++)
-    {
+    for (int x = 0; x < NUM_TILES_X * 2 + 1; x++)
         printf("-");
-    }
     printf("\n");
 
-    for (int i = 0; i < NUM_TILES_Y; i++)
+    for (int y = 0; y < NUM_TILES_Y; y++)
     {
-        printf("%c|", 65 + i);
-        for (int j = 0; j < NUM_TILES_X; j++)
-        {
-            printf("%c", field[i][j]);   
-        }
+        printf("%c|", 65 + y);
+        for (int x = 0; x < NUM_TILES_X; x++)
+            printf("%c ", field[x][y]);   
         printf("\n");
     }
+}
+
+void game()
+{
+    char option;
+    char position[2];
+
+    do
+    {
+        printf("Select option <P, R, Q>: ");
+        scanf(" %c", &option);
+
+        printf("Select position: ");
+        scanf(" %s2", position);
+
+        int x_pos = position[1] - '0' - 1;
+        int y_pos = ((int) position[0]) - 65;
+
+        update_tile(x_pos, y_pos, '+');
+
+        draw_field();
+    } while(option != 'Q');
 }
 
 void login()
@@ -44,14 +65,14 @@ void login()
     char password[255];
 
     printf("Enter your username: ");
-    scanf("%255s", username);  
+    scanf(" %255s", username);  
     printf("Enter your password: ");
-    scanf("%255s", password);
+    scanf(" %255s", password);
 }
 
 int menu()
 {
-    printf("Welcome to the Minesweeper gaming system.\n\n");
+    printf("\nWelcome to the Minesweeper gaming system.\n\n");
     printf("Please enter a selection:\n");
     printf("<1> Play Minesweeper\n");
     printf("<2> Show Leaderboard\n");
@@ -61,7 +82,7 @@ int menu()
 
     do
     {
-        printf("Selection option (1-3):");
+        printf("Selection option (1-3): ");
         scanf("%d", &selection);
     } while (selection < 1 || selection > 3);
     
@@ -70,6 +91,9 @@ int menu()
 
 int main(int argc, char* argv[])
 {
+
+    // game();
+
     printf("\n");
 
     char* ip_address = argv[1];
@@ -84,11 +108,11 @@ int main(int argc, char* argv[])
     switch (selection)
     {
         case 1:
-            draw_field();
+            game();
             break;
 
         case 2:
-            draw_field();
+            return 0;
             break;
 
         case 3:
