@@ -52,8 +52,6 @@ void game()
         int y_pos = ((int) position[0]) - 65;
 
         update_tile(x_pos, y_pos, '+');
-
-
     } while(option != 'Q');
 }
 
@@ -97,15 +95,10 @@ int menu()
 
 int main(int argc, char* argv[])
 {
-
-    // game();
-
-    printf("\n");
-
     char* ip_address = argv[1];
     int port = atoi(argv[2]);
 
-    printf("Connecting to %s:%d...\n\n", ip_address, port);
+    printf("\nConnecting to %s:%d...\n\n", ip_address, port);
 
     login();
     int selection = menu();
