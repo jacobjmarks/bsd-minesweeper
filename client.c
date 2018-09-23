@@ -115,7 +115,7 @@ int login(char* ip, int port)
 
     char username[10];
     char password[10];
-    char message[10 + 2 + 10];
+    char message[100];
 
     printf("Enter your username: ");
     scanf(" %10s", username);  
