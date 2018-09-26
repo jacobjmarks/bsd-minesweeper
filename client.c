@@ -68,9 +68,9 @@ int spunk(int sock, int protocol, char* message, char* response)
     char packet[BUFFER_SIZE];
     packet[0] = protocol + '0';
     strncat(packet, message, 50);
-    printf("Sending %s with size %d on sock %d\n", packet, BUFFER_SIZE, sock);
+    printf("Sending '%s' with size %d on sock %d\n", packet, BUFFER_SIZE, sock);
     write(sock, packet, BUFFER_SIZE);
-    read(sock, &response, BUFFER_SIZE);
+    read(sock, response, BUFFER_SIZE);
     int status = 0;
     return status;
 }
