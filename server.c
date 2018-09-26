@@ -55,8 +55,8 @@ void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
             int adjacent_mines = 0;
             for (int i = -1; i < 2; i++) {
                 for (int j = -1; j < 2; j++) {
-                    if (x+i < 0 || x+i > NUM_TILES_X) continue;
-                    if (y+j < 0 || y+j > NUM_TILES_Y) continue;
+                    if (x+i < 0 || x+i >= NUM_TILES_X) continue;
+                    if (y+j < 0 || y+j >= NUM_TILES_Y) continue;
                     if (tiles[x+i][y+j].is_mine) adjacent_mines++;
                 }
             }
@@ -185,8 +185,48 @@ void* client_thread(void* data) {
                 send(sock, &terminate, 100, 0);
 
                 break;
-            default:;
+            }
+            case FLAG_TILE: {
+                int pos_x = ctoi(request[1]);
+                int pos_y = ctoi(request[2]);
+
+                printf("Flagging tile %d:%d...\n", pos_x, pos_y);
+
+                Tile* tile = &gs->tiles[pos_x][pos_y];
+
+                if (!tile->is_mine) {
+                    char response[100] = {0};
+                    response[0] = 'T';
+                    printf("Responding: %s\n", response);
+                    send(sock, &response, 100, 0);
+                    break;
+                }
+
+                // Flag and return remaining number of mines...
+
+                tile->revealed = true;              
+
+                int mines_remaining = 0;
+
+                for (int y = 0; y < NUM_TILES_Y; y++) {
+                    for (int x = 0; x < NUM_TILES_X; x++) {
+                        Tile* tile = &gs->tiles[x][y];
+                        if (tile->is_mine && !tile->revealed) {
+                            mines_remaining++;
+                        }
+                    }
+                }
+                
+                char response[100] = {0};
+                response[0] = itoc(mines_remaining);
+                printf("Responding: %s\n", response);
+                send(sock, &response, 100, 0);
+
                 break;
+            }
+            default: {
+                break;
+            }
         }
     }
 }
