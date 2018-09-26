@@ -11,6 +11,9 @@
 #include "tile.h"
 #include "protocol.h"
 
+#define ctoi(char)(char - '0')
+#define itoc(int)(int + '0')
+
 #define NUM_MINES 10
 
 int port;
@@ -117,7 +120,7 @@ void* client_thread(void* data) {
     while (true) {
         char request[100];
         read(sock, request, 100);
-        int protocol = request[0] - '0';
+        int protocol = ctoi(request[0]);
 
         switch (protocol) {
             case REVEAL_TILE:;
@@ -171,7 +174,7 @@ int main(int argc, char* argv[]) {
 
         char request[100];
         read(sock, request, 100);
-        int protocol = request[0] - '0';
+        int protocol = ctoi(request[0]);
 
         printf("Serving {\n");
         printf("    Protocol: %d\n", protocol);
