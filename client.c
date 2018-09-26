@@ -45,26 +45,56 @@ void draw_field()
     printf("\n");
 }
 
+
+int reveal_position(int x_pos, int y_pos)
+{
+
+}
+
+int flag_position(int x_pos, int y_pos)
+{
+
+}
+
+int option(int* x_pos_ref, int* y_pos_ref)
+{
+    char option, position[2];
+    int x_pos, y_pos;
+    bool x_valid, y_valid;
+
+    do
+    {
+        printf("Select option <P, R, Q>: ");
+        scanf(" %c", &option);
+        if (option == 'Q')
+            return QUIT;
+    } while (option != 'P' && option != 'R');
+
+    do
+    {
+        printf("Select position: ");
+        scanf(" %s2", position);
+        x_pos = ctoi(position[1]) - 1;
+        y_pos = ((int) position[0]) - 65;
+        x_valid = x_pos >= 0 && x_pos < NUM_TILES_X;
+        y_valid = y_pos >= 0 && y_pos < NUM_TILES_Y;
+    } while (!x_valid || !y_valid);
+    
+    *x_pos_ref = x_pos;
+    *y_pos_ref = y_pos;
+    return option == 'P' ? FLAG_TILE : REVEAL_TILE;
+}
+
 int game(int sock)
 {
-    char option;
-    char position[2];
 
     while(true)
     {
         draw_field();
 
-        printf("Select option <P, R, Q>: ");
-        scanf(" %c", &option);
-        if (option == 'Q')
+        int protocol, x_pos, y_pos;
+        if ((protocol = option(&x_pos, &y_pos)) == QUIT)
             return QUIT;
-        printf("Select position: ");
-        scanf(" %s2", position);
-        
-        int protocol = option == 'P' ? FLAG_TILE : REVEAL_TILE;
-        
-        int x_pos = ctoi(position[1]) - 1;
-        int y_pos = ((int) position[0]) - 65;
 
         char pos_request[BUFFER_SIZE] = {0};
         pos_request[0] = itoc(x_pos);
@@ -94,8 +124,16 @@ int game(int sock)
             }
         }
 
-        if (remaining_mines == 0) return WIN;
-        if (gameover) return LOSE;
+        if (remaining_mines == 0)
+        {
+            draw_field();
+            return WIN;   
+        }
+        if (gameover)
+        {
+            draw_field();
+            return LOSE;   
+        }
     }
     return QUIT;
 }
@@ -116,7 +154,7 @@ int spunk(int sock, int protocol, const char* message)
     char packet[BUFFER_SIZE] = {0};
     packet[0] = itoc(protocol);
     strncat(packet, message, 99);
-    printf("Sending '%s' with size %d...\n", packet, BUFFER_SIZE);
+    printf("Sending '%s'...\n", packet, BUFFER_SIZE);
     
     if (write(sock, packet, BUFFER_SIZE) < 0)
     {
@@ -223,7 +261,7 @@ int main(int argc, char* argv[])
             break;
     }
 
-    draw_field();
+
     printf("\nThanks for playing!\n");
 
     return 0;
