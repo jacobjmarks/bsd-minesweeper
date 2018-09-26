@@ -19,7 +19,7 @@ int remaining_mines = 10;
 
 void update_tile(int x, int y, const char c)
 {
-    printf("Attempting to update x:%d y:%d with %c\n.", x, y, c);
+    printf("Attempting to update x:%d y:%d with %c\n", x, y, c);
     field[x][y] = c;
 }
 
@@ -45,18 +45,10 @@ void draw_field()
     printf("\n");
 }
 
-// int get_option(char* option)
-// {
-    // printf("Select option <P, R, Q>: ");
-    // scanf(" %c", option);
-    // return *option != 'Q';
-// }
-
 int game(int sock)
 {
     char option;
     char position[2];
-
 
     while(true)
     {
@@ -88,7 +80,7 @@ int game(int sock)
             eavesdrop(sock, response);
             if (response[0] == TERMINATOR)
                 break;    
-            if (response[0] == MINE)
+            if (response[2] == MINE)
                 gameover = true;
             if (protocol == FLAG_TILE)
             {
@@ -231,6 +223,7 @@ int main(int argc, char* argv[])
             break;
     }
 
+    draw_field();
     printf("\nThanks for playing!\n");
 
     return 0;
