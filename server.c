@@ -110,6 +110,31 @@ GameState* create_gamestate() {
     return gs;
 }
 
+void reveal_and_traverse(int x, int y, GameState* gs) {
+    printf("RAT %d %d\n", x, y);
+    Tile* self = &gs->tiles[x][y];
+    self->revealed = true;
+
+    if (self->adjacent_mines != 0) return;
+
+    for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+            if (i == 0 && j == 0) continue;
+            if (x+i < 0 || x+i >= NUM_TILES_X) continue;
+            if (y+j < 0 || y+j >= NUM_TILES_Y) continue;
+
+            Tile* tile = &gs->tiles[x+i][y+j];
+            if (tile->revealed) continue;
+
+            if (tile->adjacent_mines == 0) {
+                reveal_and_traverse(x+i, y+j, gs);
+            } else {
+                if (!tile->is_mine) tile->revealed = true;
+            }
+        }
+    }
+}
+
 void* client_thread(void* data) {
     int tid = pthread_self();
 
@@ -133,9 +158,11 @@ void* client_thread(void* data) {
         printf("}\n");
 
         switch (protocol) {
-            case REVEAL_TILE:;
+            case REVEAL_TILE: {
                 int pos_x = ctoi(request[1]);
                 int pos_y = ctoi(request[2]);
+
+                printf("Revealing tile %d:%d...\n", pos_x, pos_y);
 
                 Tile* tile = &gs->tiles[pos_x][pos_y];
 
@@ -170,14 +197,22 @@ void* client_thread(void* data) {
                     break;
                 }
 
-                tile->revealed = true;
+                reveal_and_traverse(pos_x, pos_y, gs);
 
-                char response[100] = {0};
-                response[0] = itoc(pos_x);
-                response[1] = itoc(pos_y);
-                response[2] = itoc(tile->adjacent_mines);
-                printf("Responding: %s\n", response);
-                send(sock, &response, 100, 0);
+                // Stream all revealed tiles
+                for (int y = 0; y < NUM_TILES_Y; y++) {
+                    for (int x = 0; x < NUM_TILES_X; x++) {
+                        Tile* tile = &gs->tiles[x][y];
+                        if (tile->revealed) {
+                            char response[100] = {0};
+                            response[0] = itoc(x);
+                            response[1] = itoc(y);
+                            response[2] = itoc(tile->adjacent_mines);
+                            printf("Responding: %s\n", response);
+                            send(sock, &response, 100, 0);
+                        }
+                    }
+                }
 
                 char terminate[100] = {0};
                 terminate[0] = 'T';
