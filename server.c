@@ -11,6 +11,9 @@
 #include "tile.h"
 #include "protocol.h"
 
+#define ctoi(char)(char - '0')
+#define itoc(int)(int + '0')
+
 #define NUM_MINES 10
 
 int port;
@@ -108,19 +111,30 @@ GameState* create_gamestate() {
 }
 
 void* client_thread(void* data) {
+    int tid = pthread_self();
+
     int sock = *(int*)data;
     free(data);
 
     GameState* gs = create_gamestate();
 
-    printf("Thread: Listening...\n");
+    printf("T%x: Listening...\n", tid);
     while (true) {
         char request[100];
-        read(sock, request, 100);
-        int protocol = request[0] - '0';
+        if (read(sock, request, 100) <= 0) {
+            printf("T%x exiting: Error connecting to client.\n", tid);
+            pthread_exit(NULL);
+        }
+        int protocol = ctoi(request[0]);
+
+        printf("T%x serving {\n", tid);
+        printf("    Protocol: %d\n", protocol);
+        printf("    Message:  %s\n", request + 1);
+        printf("}\n");
 
         switch (protocol) {
             case REVEAL_TILE:;
+
                 break;
             default:;
                 break;
@@ -170,8 +184,12 @@ int main(int argc, char* argv[]) {
         create_new_client = false;
 
         char request[100];
-        read(sock, request, 100);
-        int protocol = request[0] - '0';
+        if (read(sock, request, 100) <= 0) {
+            printf("Closing connection: Error connecting to client.\n");
+            create_new_client = true;
+            continue;
+        }
+        int protocol = ctoi(request[0]);
 
         printf("Serving {\n");
         printf("    Protocol: %d\n", protocol);
@@ -180,8 +198,20 @@ int main(int argc, char* argv[]) {
         
         switch (protocol) {
             case LOGIN:;
-                char* user = strtok(request + 1, "\t");
+                char credentials[100];
+                strncpy(credentials, request + 1, strlen(request));
+
+                char* user = strtok(credentials, ":");
                 char* pass = strtok(NULL, "\n");
+
+                if (user == NULL || pass == NULL) {
+                    printf("Error parsing credentials.\n");
+                    char response[100] = {0};
+                    strcat(response, "0");
+                    printf("Responding: %s\n", response);
+                    send(sock, &response, 100, 0);
+                    break;
+                }
 
                 printf("Authenticating %s:%s...", user, pass);
                 bool authenticated = authenticate(user, pass);
@@ -193,7 +223,7 @@ int main(int argc, char* argv[]) {
                     *data = sock;
                     pthread_t pid;
                     pthread_create(&pid, NULL, client_thread, data);
-                    printf("Done\n");
+                    printf("Done (%x)\n", (int)pid);
                     create_new_client = true;
                 } else {
                     printf("Denied\n");
