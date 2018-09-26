@@ -111,27 +111,30 @@ GameState* create_gamestate() {
 }
 
 void* client_thread(void* data) {
+    int tid = pthread_self();
+
     int sock = *(int*)data;
     free(data);
 
     GameState* gs = create_gamestate();
 
-    printf("Thread: Listening...\n");
+    printf("T%x: Listening...\n", tid);
     while (true) {
         char request[100];
         if (read(sock, request, 100) <= 0) {
-            printf("Thread exiting: Error connecting to client.\n");
+            printf("T%x exiting: Error connecting to client.\n", tid);
             pthread_exit(NULL);
         }
         int protocol = ctoi(request[0]);
 
-        printf("Thread serving {\n");
+        printf("T%x serving {\n", tid);
         printf("    Protocol: %d\n", protocol);
         printf("    Message:  %s\n", request + 1);
         printf("}\n");
 
         switch (protocol) {
             case REVEAL_TILE:;
+
                 break;
             default:;
                 break;
@@ -199,8 +202,9 @@ int main(int argc, char* argv[]) {
                 strncpy(credentials, request + 1, strlen(request));
 
                 char* user = strtok(credentials, ":");
+                char* pass = strtok(NULL, "\n");
 
-                if (user == credentials) { // no delimiter
+                if (user == NULL || pass == NULL) {
                     printf("Error parsing credentials.\n");
                     char response[100] = {0};
                     strcat(response, "0");
@@ -208,8 +212,6 @@ int main(int argc, char* argv[]) {
                     send(sock, &response, 100, 0);
                     break;
                 }
-
-                char* pass = strtok(NULL, "\n");
 
                 printf("Authenticating %s:%s...", user, pass);
                 bool authenticated = authenticate(user, pass);
@@ -221,7 +223,7 @@ int main(int argc, char* argv[]) {
                     *data = sock;
                     pthread_t pid;
                     pthread_create(&pid, NULL, client_thread, data);
-                    printf("Done\n");
+                    printf("Done (%x)\n", (int)pid);
                     create_new_client = true;
                 } else {
                     printf("Denied\n");
