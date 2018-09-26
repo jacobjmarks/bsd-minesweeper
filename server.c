@@ -134,6 +134,55 @@ void* client_thread(void* data) {
 
         switch (protocol) {
             case REVEAL_TILE:;
+                int pos_x = ctoi(request[1]);
+                int pos_y = ctoi(request[2]);
+
+                Tile* tile = &gs->tiles[pos_x][pos_y];
+
+                if (tile->revealed) {
+                    char response[100] = {0};
+                    response[0] = 'T';
+                    printf("Responding: %s\n", response);
+                    send(sock, &response, 100, 0);
+                    break;
+                }
+
+                if (tile->is_mine) {
+                    // Stream all mine positions
+                    for (int y = 0; y < NUM_TILES_Y; y++) {
+                        for (int x = 0; x < NUM_TILES_X; x++) {
+                            if (gs->tiles[x][y].is_mine) {
+                                char response[100] = {0};
+                                response[0] = itoc(x);
+                                response[1] = itoc(y);
+                                response[2] = '*';
+                                printf("Responding: %s\n", response);
+                                send(sock, &response, 100, 0);
+                            }
+                        }
+                    }
+
+                    char terminate[100] = {0};
+                    terminate[0] = 'T';
+                    printf("Responding: %s\n", terminate);
+                    send(sock, &terminate, 100, 0);
+
+                    break;
+                }
+
+                tile->revealed = true;
+
+                char response[100] = {0};
+                response[0] = itoc(pos_x);
+                response[1] = itoc(pos_y);
+                response[2] = itoc(tile->adjacent_mines);
+                printf("Responding: %s\n", response);
+                send(sock, &response, 100, 0);
+
+                char terminate[100] = {0};
+                terminate[0] = 'T';
+                printf("Responding: %s\n", terminate);
+                send(sock, &terminate, 100, 0);
 
                 break;
             default:;
