@@ -119,8 +119,16 @@ void* client_thread(void* data) {
     printf("Thread: Listening...\n");
     while (true) {
         char request[100];
-        read(sock, request, 100);
+        if (read(sock, request, 100) <= 0) {
+            printf("Thread exiting: Error connecting to client.\n");
+            pthread_exit(NULL);
+        }
         int protocol = ctoi(request[0]);
+
+        printf("Thread serving {\n");
+        printf("    Protocol: %d\n", protocol);
+        printf("    Message:  %s\n", request + 1);
+        printf("}\n");
 
         switch (protocol) {
             case REVEAL_TILE:;
@@ -173,7 +181,11 @@ int main(int argc, char* argv[]) {
         create_new_client = false;
 
         char request[100];
-        read(sock, request, 100);
+        if (read(sock, request, 100) <= 0) {
+            printf("Closing connection: Error connecting to client.\n");
+            create_new_client = true;
+            continue;
+        }
         int protocol = ctoi(request[0]);
 
         printf("Serving {\n");
@@ -183,7 +195,20 @@ int main(int argc, char* argv[]) {
         
         switch (protocol) {
             case LOGIN:;
-                char* user = strtok(request + 1, "\t");
+                char credentials[100];
+                strncpy(credentials, request + 1, strlen(request));
+
+                char* user = strtok(credentials, ":");
+
+                if (user == credentials) { // no delimiter
+                    printf("Error parsing credentials.\n");
+                    char response[100] = {0};
+                    strcat(response, "0");
+                    printf("Responding: %s\n", response);
+                    send(sock, &response, 100, 0);
+                    break;
+                }
+
                 char* pass = strtok(NULL, "\n");
 
                 printf("Authenticating %s:%s...", user, pass);
