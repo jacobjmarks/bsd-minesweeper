@@ -10,20 +10,22 @@
 #include "tile.h"
 #include "protocol.h"
 
-#define ctoi(my_char) (my_char-'0')
-#define itoc(my_int)  (my_int+'0')
+#define ctoi(c) (c-'0')
+#define itoc(i) (i+'0')
 
 char field[NUM_TILES_X][NUM_TILES_Y];
 
+int remaining_mines = 10;
+
 void update_tile(int x, int y, const char c)
 {
-    printf("Attempting to update x:%d y:%d with %c\n", x, y, c);
+    printf("Attempting to update x:%d y:%d with %c\n.", x, y, c);
     field[x][y] = c;
 }
 
 void draw_field()
 {
-    printf("\n\n\nRemaining mines: %d\n\n ", 10);
+    printf("\n\n\nRemaining mines: %d\n\n ", remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
         printf(" %d", x+1);
@@ -43,42 +45,67 @@ void draw_field()
     printf("\n");
 }
 
-void game(int sock)
+// int get_option(char* option)
+// {
+    // printf("Select option <P, R, Q>: ");
+    // scanf(" %c", option);
+    // return *option != 'Q';
+// }
+
+int game(int sock)
 {
     char option;
     char position[2];
 
-    while(1)
+
+    while(true)
     {
         draw_field();
+
         printf("Select option <P, R, Q>: ");
         scanf(" %c", &option);
-        if(option == 'Q')
-            return;
+        if (option == 'Q')
+            return QUIT;
         printf("Select position: ");
         scanf(" %s2", position);
-
+        
         int protocol = option == 'P' ? FLAG_TILE : REVEAL_TILE;
         
         int x_pos = ctoi(position[1]) - 1;
         int y_pos = ((int) position[0]) - 65;
 
-        char pos_request[BUFFER_SIZE];
-        pos_request[0] = x_pos;
-        pos_request[1] = y_pos; 
+        char pos_request[BUFFER_SIZE] = {0};
+        pos_request[0] = itoc(x_pos);
+        pos_request[1] = itoc(y_pos); 
 
         spunk(sock, protocol, pos_request);
         
-        while(1)
+        bool gameover = false;
+
+        char response[BUFFER_SIZE];
+        while(true)
         {
-            char response[BUFFER_SIZE];
             eavesdrop(sock, response);
-            if (response[0] == 'T')
+            if (response[0] == TERMINATOR)
+                break;    
+            if (response[0] == MINE)
+                gameover = true;
+            if (protocol == FLAG_TILE)
+            {
+                remaining_mines = ctoi(response[0]);
+                update_tile(x_pos, y_pos, FLAG);
                 break;
-            update_tile(ctoi(response[0]), ctoi(response[1]), response[3]);
+            }
+            else
+            {
+                update_tile(ctoi(response[0]), ctoi(response[1]), response[2]);  
+            }
         }
-        
+
+        if (remaining_mines == 0) return WIN;
+        if (gameover) return LOSE;
     }
+    return QUIT;
 }
 
 int eavesdrop(int sock, char* response)
@@ -88,15 +115,16 @@ int eavesdrop(int sock, char* response)
         printf("Connection failure.\n");
         exit(1);
     }
+    printf("Response: %s\n", response);
     return 0;
 }
 
 int spunk(int sock, int protocol, const char* message)
 {
-    char packet[BUFFER_SIZE];
+    char packet[BUFFER_SIZE] = {0};
     packet[0] = itoc(protocol);
     strncat(packet, message, 99);
-    printf("Sending '%s' with size %d... ", packet, BUFFER_SIZE);
+    printf("Sending '%s' with size %d...\n", packet, BUFFER_SIZE);
     
     if (write(sock, packet, BUFFER_SIZE) < 0)
     {
