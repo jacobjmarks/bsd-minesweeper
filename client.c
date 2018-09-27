@@ -87,14 +87,16 @@ int option(int* x_pos_ref, int* y_pos_ref)
 
 int game(int sock)
 {
+    int protocol, x_pos, y_pos;
 
-    while(true)
+    draw_field();
+    while(protocol = option(&x_pos, &y_pos))
     {
-        draw_field();
+        // draw_field();
 
-        int protocol, x_pos, y_pos;
-        if ((protocol = option(&x_pos, &y_pos)) == QUIT)
-            return QUIT;
+        // int protocol, x_pos, y_pos;
+        // if ((protocol = option(&x_pos, &y_pos)) == QUIT)
+            // return QUIT;
 
         char pos_request[BUFFER_SIZE] = {0};
         pos_request[0] = itoc(x_pos);
@@ -124,14 +126,16 @@ int game(int sock)
             }
         }
 
+        draw_field();
+
         if (remaining_mines == 0)
         {
-            draw_field();
+            // draw_field();
             return WIN;   
         }
         if (gameover)
         {
-            draw_field();
+            // draw_field();
             return LOSE;   
         }
     }
