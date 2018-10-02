@@ -148,7 +148,7 @@ void* client_thread(void* data) {
         char request[BUFFER_SIZE];
         if (read(sock, request, BUFFER_SIZE) <= 0) {
             printf("T%x exiting: Error connecting to client.\n", tid);
-            pthread_exit(NULL);
+            break;
         }
         int protocol = ctoi(request[0]);
 
@@ -264,6 +264,9 @@ void* client_thread(void* data) {
             }
         }
     }
+
+    free(gs);
+    return NULL;
 }
 
 bool authenticate(char* user, char* pass) {
