@@ -145,8 +145,8 @@ void* client_thread(void* data) {
 
     printf("T%x: Listening...\n", tid);
     while (true) {
-        char request[100];
-        if (read(sock, request, 100) <= 0) {
+        char request[BUFFER_SIZE];
+        if (read(sock, request, BUFFER_SIZE) <= 0) {
             printf("T%x exiting: Error connecting to client.\n", tid);
             pthread_exit(NULL);
         }
@@ -167,10 +167,10 @@ void* client_thread(void* data) {
                 Tile* tile = &gs->tiles[pos_x][pos_y];
 
                 if (tile->revealed) {
-                    char response[100] = {0};
+                    char response[BUFFER_SIZE] = {0};
                     response[0] = 'T';
                     printf("Responding: %s\n", response);
-                    send(sock, &response, 100, 0);
+                    send(sock, &response, BUFFER_SIZE, 0);
                     break;
                 }
 
@@ -179,20 +179,20 @@ void* client_thread(void* data) {
                     for (int y = 0; y < NUM_TILES_Y; y++) {
                         for (int x = 0; x < NUM_TILES_X; x++) {
                             if (gs->tiles[x][y].is_mine) {
-                                char response[100] = {0};
+                                char response[BUFFER_SIZE] = {0};
                                 response[0] = itoc(x);
                                 response[1] = itoc(y);
                                 response[2] = '*';
                                 printf("Responding: %s\n", response);
-                                send(sock, &response, 100, 0);
+                                send(sock, &response, BUFFER_SIZE, 0);
                             }
                         }
                     }
 
-                    char terminate[100] = {0};
+                    char terminate[BUFFER_SIZE] = {0};
                     terminate[0] = 'T';
                     printf("Responding: %s\n", terminate);
-                    send(sock, &terminate, 100, 0);
+                    send(sock, &terminate, BUFFER_SIZE, 0);
 
                     break;
                 }
@@ -204,20 +204,20 @@ void* client_thread(void* data) {
                     for (int x = 0; x < NUM_TILES_X; x++) {
                         Tile* tile = &gs->tiles[x][y];
                         if (!tile->is_mine && tile->revealed) {
-                            char response[100] = {0};
+                            char response[BUFFER_SIZE] = {0};
                             response[0] = itoc(x);
                             response[1] = itoc(y);
                             response[2] = itoc(tile->adjacent_mines);
                             printf("Responding: %s\n", response);
-                            send(sock, &response, 100, 0);
+                            send(sock, &response, BUFFER_SIZE, 0);
                         }
                     }
                 }
 
-                char terminate[100] = {0};
+                char terminate[BUFFER_SIZE] = {0};
                 terminate[0] = 'T';
                 printf("Responding: %s\n", terminate);
-                send(sock, &terminate, 100, 0);
+                send(sock, &terminate, BUFFER_SIZE, 0);
 
                 break;
             }
@@ -230,10 +230,10 @@ void* client_thread(void* data) {
                 Tile* tile = &gs->tiles[pos_x][pos_y];
 
                 if (!tile->is_mine) {
-                    char response[100] = {0};
+                    char response[BUFFER_SIZE] = {0};
                     response[0] = 'T';
                     printf("Responding: %s\n", response);
-                    send(sock, &response, 100, 0);
+                    send(sock, &response, BUFFER_SIZE, 0);
                     break;
                 }
 
@@ -252,10 +252,10 @@ void* client_thread(void* data) {
                     }
                 }
                 
-                char response[100] = {0};
+                char response[BUFFER_SIZE] = {0};
                 response[0] = itoc(mines_remaining);
                 printf("Responding: %s\n", response);
-                send(sock, &response, 100, 0);
+                send(sock, &response, BUFFER_SIZE, 0);
 
                 break;
             }
@@ -307,8 +307,8 @@ int main(int argc, char* argv[]) {
         }
         create_new_client = false;
 
-        char request[100];
-        if (read(sock, request, 100) <= 0) {
+        char request[BUFFER_SIZE];
+        if (read(sock, request, BUFFER_SIZE) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
             create_new_client = true;
             continue;
@@ -322,7 +322,7 @@ int main(int argc, char* argv[]) {
         
         switch (protocol) {
             case LOGIN:;
-                char credentials[100];
+                char credentials[BUFFER_SIZE];
                 strncpy(credentials, request + 1, strlen(request));
 
                 char* user = strtok(credentials, ":");
@@ -330,10 +330,10 @@ int main(int argc, char* argv[]) {
 
                 if (user == NULL || pass == NULL) {
                     printf("Error parsing credentials.\n");
-                    char response[100] = {0};
+                    char response[BUFFER_SIZE] = {0};
                     strcat(response, "0");
                     printf("Responding: %s\n", response);
-                    send(sock, &response, 100, 0);
+                    send(sock, &response, BUFFER_SIZE, 0);
                     break;
                 }
 
@@ -353,10 +353,10 @@ int main(int argc, char* argv[]) {
                     printf("Denied\n");
                 }
 
-                char response[100] = {0};
+                char response[BUFFER_SIZE] = {0};
                 strcat(response, authenticated ? "1" : "0");
                 printf("Responding: %s\n", response);
-                send(sock, &response, 100, 0);
+                send(sock, &response, BUFFER_SIZE, 0);
                 break;
             default:;
                 break;
