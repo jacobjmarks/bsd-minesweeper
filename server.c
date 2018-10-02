@@ -203,7 +203,7 @@ void* client_thread(void* data) {
                 for (int y = 0; y < NUM_TILES_Y; y++) {
                     for (int x = 0; x < NUM_TILES_X; x++) {
                         Tile* tile = &gs->tiles[x][y];
-                        if (tile->revealed) {
+                        if (!tile->is_mine && tile->revealed) {
                             char response[100] = {0};
                             response[0] = itoc(x);
                             response[1] = itoc(y);
