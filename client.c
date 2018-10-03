@@ -14,22 +14,21 @@
 #define itoc(i) (i+'0')
 
 char field[NUM_TILES_X][NUM_TILES_Y];
-
 int remaining_mines = 10;
 
-
-int eavesdrop(int sock, char* response)
+char* eavesdrop(int sock)
 {
+    static char response[PACKET_SIZE];
     if (read(sock, response, PACKET_SIZE) <= 0)
     {
         printf("Connection failure.\n");
         exit(1);
     }
     printf("Response: %s\n", response);
-    return 0;
+    return response;
 }
 
-int spunk(int sock, int protocol, const char* message)
+void spunk(int sock, int protocol, const char* message)
 {
     char packet[PACKET_SIZE] = {0};
     packet[0] = itoc(protocol);
@@ -41,11 +40,7 @@ int spunk(int sock, int protocol, const char* message)
         printf("Connection failure.\n");
         exit(1);
     }
-
-    return 0;
 }
-
-
 
 void update_tile(int x, int y, const char c)
 {
@@ -55,6 +50,7 @@ void update_tile(int x, int y, const char c)
 
 void draw_field()
 {
+    system("clear");
     printf("\n\n\nRemaining mines: %d\n\n ", remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
@@ -70,9 +66,8 @@ void draw_field()
         printf("%c|", 65 + y);
         for (int x = 0; x < NUM_TILES_X; x++)
         {
-            char c;
-            printf("%c ", (c = field[x][y]) ? c : ' ');   
-        
+            char c = field[x][y];
+            printf("%c ", c ? c : ' ');
         }
         printf("\n");
     }
@@ -126,33 +121,42 @@ int game(int sock)
     draw_field();
     while(protocol = option(&x_pos, &y_pos))
     {
+        char* response;
         char pos_request[PACKET_SIZE] = {0};
+        bool gameover = false;
+        
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos); 
 
         spunk(sock, protocol, pos_request);
-        
-        bool gameover = false;  
-
-        char response[PACKET_SIZE];
-        while(true)
+        switch (protocol)
         {
-            eavesdrop(sock, response);
-            if (response[0] == TERMINATOR)
-                break;    
-            if (response[2] == MINE)
-                gameover = true;
-            if (protocol == FLAG_TILE)
-            {
-                remaining_mines = ctoi(response[0]);
-                update_tile(x_pos, y_pos, FLAG);
+            case FLAG_TILE:
+                if(*(response = eavesdrop(sock)) != TERMINATOR)
+                {
+                    printf("You take the majority of dance songs, and strip away the dance beat... there's not a lot left.");
+                }
+                else
+                {
+                    remaining_mines = ctoi(response[0]);
+                    update_tile(x_pos, y_pos, FLAG);
+                }
                 break;
-            }
-            else
-            {
-                update_tile(ctoi(response[0]), ctoi(response[1]), response[2]);  
-            }
+            case REVEAL_TILE:
+                while(*(response = eavesdrop(sock)) != TERMINATOR)
+                {
+                    if (*(response+2) == MINE)
+                    {
+                        gameover = true;   
+                    }
+                    update_tile(*(response), *(response+1), *(response+2));    
+                }
+                break;
+            default:
+                printf("Client protocol error! Consult programmers!");
+                break;
         }
+        
 
         draw_field();
 
@@ -165,7 +169,7 @@ int game(int sock)
 }
 
 
-int login(char* ip, int port)
+int login(const char* ip, int port)
 {
     printf("\nConnecting to %s:%d...\n", ip, port);
     
@@ -211,10 +215,9 @@ int login(char* ip, int port)
     sprintf(credentials,"%s:%s", username, password);
     
     spunk(sock, LOGIN, credentials);
-    char response[PACKET_SIZE];
-    eavesdrop(sock, response);
+    char* response = eavesdrop(sock);
 
-    if (response[0])
+    if (*response)
     {
         return sock;
     }
@@ -241,23 +244,37 @@ int menu()
         printf("Selection option (1-3): ");
         scanf("%d", &selection);
     } while (selection < 1 || selection > 3);
-    return selection;
+    
+    switch selection
+    {
+        case 1:
+            return PLAY;
+        case 2:
+            return LEADERBOARD;
+        case 3:
+            return QUIT;
+    }
+}
+
+void leaderboard(int sock)
+{
+
 }
 
 int main(int argc, char* argv[])
 {
-    char* ip = argv[1];
+    const char* ip = argv[1];
     int port = atoi(argv[2]);
     int sock = login(ip, port);
  
     switch (menu())
     {
-        case 1:
+        case PLAY:
             game(sock);
             break;
 
-        case 2:
-            return 0;
+        case LEADERBOARD:
+            leaderboard(sock);
             break;
     }
 
