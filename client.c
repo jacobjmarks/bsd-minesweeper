@@ -137,7 +137,7 @@ int game(int sock)
                 }
                 else
                 {
-                    remaining_mines = ctoi(response[0]);
+                    remaining_mines = ctoi(*response);
                     update_tile(x_pos, y_pos, FLAG);
                 }
                 break;
