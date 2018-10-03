@@ -15,11 +15,19 @@
 
 #define NUM_MINES 10
 
-int port;
-
 typedef struct {
     Tile tiles[NUM_TILES_X][NUM_TILES_Y];
 } GameState;
+
+typedef struct {
+    int fd;
+    int sock;
+} BSD;
+
+typedef struct {
+    char* user;
+    BSD bsd;
+} ThreadData;
 
 void print_tile_state(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     printf("[adjacent_mines revealed is_mine]\n");
@@ -64,18 +72,18 @@ void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
-int create_socket() {
-    int server_fd, new_socket;
+BSD create_socket(int port) {
+    BSD bsd;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
     
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+    if ((bsd.fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
     
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    if (setsockopt(bsd.fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
@@ -84,22 +92,22 @@ int create_socket() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(bsd.fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
 
-    if (listen(server_fd, 3) < 0) {
+    if (listen(bsd.fd, 3) < 0) {
         perror("listen");
         exit(EXIT_FAILURE);
     }
 
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+    if ((bsd.sock = accept(bsd.fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
         perror("accept");
         exit(EXIT_FAILURE);
     }
 
-    return new_socket;
+    return bsd;
 }
 
 GameState* create_gamestate() {
@@ -137,15 +145,14 @@ void reveal_and_traverse(int x, int y, GameState* gs) {
 void* client_thread(void* data) {
     int tid = pthread_self();
 
-    int sock = *(int*)data;
-    free(data);
+    ThreadData td = *(ThreadData*)data;
 
     GameState* gs = create_gamestate();
 
     printf("T%x: Listening...\n", tid);
     while (true) {
         char request[PACKET_SIZE];
-        if (read(sock, request, PACKET_SIZE) <= 0) {
+        if (read(td.bsd.sock, request, PACKET_SIZE) <= 0) {
             printf("T%x exiting: Error connecting to client.\n", tid);
             break;
         }
@@ -169,7 +176,7 @@ void* client_thread(void* data) {
                     char response[PACKET_SIZE] = {0};
                     response[0] = 'T';
                     printf("Responding: %s\n", response);
-                    send(sock, &response, PACKET_SIZE, 0);
+                    send(td.bsd.sock, &response, PACKET_SIZE, 0);
                     break;
                 }
 
@@ -183,7 +190,7 @@ void* client_thread(void* data) {
                                 response[1] = itoc(y);
                                 response[2] = '*';
                                 printf("Responding: %s\n", response);
-                                send(sock, &response, PACKET_SIZE, 0);
+                                send(td.bsd.sock, &response, PACKET_SIZE, 0);
                             }
                         }
                     }
@@ -191,7 +198,7 @@ void* client_thread(void* data) {
                     char terminate[PACKET_SIZE] = {0};
                     terminate[0] = 'T';
                     printf("Responding: %s\n", terminate);
-                    send(sock, &terminate, PACKET_SIZE, 0);
+                    send(td.bsd.sock, &terminate, PACKET_SIZE, 0);
 
                     break;
                 }
@@ -208,7 +215,7 @@ void* client_thread(void* data) {
                             response[1] = itoc(y);
                             response[2] = itoc(tile->adjacent_mines);
                             printf("Responding: %s\n", response);
-                            send(sock, &response, PACKET_SIZE, 0);
+                            send(td.bsd.sock, &response, PACKET_SIZE, 0);
                         }
                     }
                 }
@@ -216,7 +223,7 @@ void* client_thread(void* data) {
                 char terminate[PACKET_SIZE] = {0};
                 terminate[0] = 'T';
                 printf("Responding: %s\n", terminate);
-                send(sock, &terminate, PACKET_SIZE, 0);
+                send(td.bsd.sock, &terminate, PACKET_SIZE, 0);
 
                 break;
             }
@@ -232,7 +239,7 @@ void* client_thread(void* data) {
                     char response[PACKET_SIZE] = {0};
                     response[0] = 'T';
                     printf("Responding: %s\n", response);
-                    send(sock, &response, PACKET_SIZE, 0);
+                    send(td.bsd.sock, &response, PACKET_SIZE, 0);
                     break;
                 }
 
@@ -254,7 +261,7 @@ void* client_thread(void* data) {
                 char response[PACKET_SIZE] = {0};
                 response[0] = itoc(mines_remaining);
                 printf("Responding: %s\n", response);
-                send(sock, &response, PACKET_SIZE, 0);
+                send(td.bsd.sock, &response, PACKET_SIZE, 0);
 
                 break;
             }
@@ -296,21 +303,21 @@ int main(int argc, char* argv[]) {
     
     srand(time(NULL));
 
-    port = atoi(argv[1]);
+    int port = atoi(argv[1]);
 
     bool create_new_client = true;
-    int sock;
+    BSD bsd;
 
     while (true) {
         if (create_new_client) {
             printf("Waiting for socket connection...\n");
-            sock = create_socket();
+            bsd = create_socket(port);
             printf("New client listening...\n");
         }
         create_new_client = false;
 
         char request[PACKET_SIZE];
-        if (read(sock, request, PACKET_SIZE) <= 0) {
+        if (read(bsd.sock, request, PACKET_SIZE) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
             create_new_client = true;
             continue;
@@ -335,7 +342,7 @@ int main(int argc, char* argv[]) {
                     char response[PACKET_SIZE] = {0};
                     strcat(response, "0");
                     printf("Responding: %s\n", response);
-                    send(sock, &response, PACKET_SIZE, 0);
+                    send(bsd.sock, &response, PACKET_SIZE, 0);
                     break;
                 }
 
@@ -345,10 +352,11 @@ int main(int argc, char* argv[]) {
                 if (authenticated) {
                     printf("Granted\n");
                     printf("Creating new client thread...");
-                    int* data = malloc(sizeof(*data));
-                    *data = sock;
+                    ThreadData data;
+                    data.user = user;
+                    data.bsd = bsd;
                     pthread_t pid;
-                    pthread_create(&pid, NULL, client_thread, data);
+                    pthread_create(&pid, NULL, client_thread, &data);
                     printf("Done (%x)\n", (int)pid);
                     create_new_client = true;
                 } else {
@@ -358,7 +366,7 @@ int main(int argc, char* argv[]) {
                 char response[PACKET_SIZE] = {0};
                 strcat(response, authenticated ? "1" : "0");
                 printf("Responding: %s\n", response);
-                send(sock, &response, PACKET_SIZE, 0);
+                send(bsd.sock, &response, PACKET_SIZE, 0);
                 break;
             default:;
                 break;
