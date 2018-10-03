@@ -5,10 +5,10 @@
 #include <string.h> 
 #include <stdbool.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "constants.h"
 #include "tile.h"
-#include "protocol.h"
 
 #define ctoi(c) (c-'0')
 #define itoc(i) (i+'0')
@@ -16,6 +16,36 @@
 char field[NUM_TILES_X][NUM_TILES_Y];
 
 int remaining_mines = 10;
+
+
+int eavesdrop(int sock, char* response)
+{
+    if (read(sock, response, PACKET_SIZE) <= 0)
+    {
+        printf("Connection failure.\n");
+        exit(1);
+    }
+    printf("Response: %s\n", response);
+    return 0;
+}
+
+int spunk(int sock, int protocol, const char* message)
+{
+    char packet[PACKET_SIZE] = {0};
+    packet[0] = itoc(protocol);
+    strncat(packet, message, 99);
+    printf("Sending '%s'...\n", packet);
+    
+    if (write(sock, packet, PACKET_SIZE) < 0)
+    {
+        printf("Connection failure.\n");
+        exit(1);
+    }
+
+    return 0;
+}
+
+
 
 void update_tile(int x, int y, const char c)
 {
@@ -39,7 +69,11 @@ void draw_field()
     {
         printf("%c|", 65 + y);
         for (int x = 0; x < NUM_TILES_X; x++)
-            printf("%c ", field[x][y]);   
+        {
+            char c;
+            printf("%c ", (c = field[x][y]) ? c : ' ');   
+        
+        }
         printf("\n");
     }
     printf("\n");
@@ -92,21 +126,15 @@ int game(int sock)
     draw_field();
     while(protocol = option(&x_pos, &y_pos))
     {
-        // draw_field();
-
-        // int protocol, x_pos, y_pos;
-        // if ((protocol = option(&x_pos, &y_pos)) == QUIT)
-            // return QUIT;
-
-        char pos_request[BUFFER_SIZE] = {0};
+        char pos_request[PACKET_SIZE] = {0};
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos); 
 
         spunk(sock, protocol, pos_request);
         
-        bool gameover = false;
+        bool gameover = false;  
 
-        char response[BUFFER_SIZE];
+        char response[PACKET_SIZE];
         while(true)
         {
             eavesdrop(sock, response);
@@ -129,45 +157,13 @@ int game(int sock)
         draw_field();
 
         if (remaining_mines == 0)
-        {
-            // draw_field();
-            return WIN;   
-        }
+            return WIN;  
         if (gameover)
-        {
-            // draw_field();
-            return LOSE;   
-        }
+            return LOSE;
     }
     return QUIT;
 }
 
-int eavesdrop(int sock, char* response)
-{
-    if (read(sock, response, BUFFER_SIZE) <= 0)
-    {
-        printf("Connection failure.\n");
-        exit(1);
-    }
-    printf("Response: %s\n", response);
-    return 0;
-}
-
-int spunk(int sock, int protocol, const char* message)
-{
-    char packet[BUFFER_SIZE] = {0};
-    packet[0] = itoc(protocol);
-    strncat(packet, message, 99);
-    printf("Sending '%s'...\n", packet, BUFFER_SIZE);
-    
-    if (write(sock, packet, BUFFER_SIZE) < 0)
-    {
-        printf("Connection failure.\n");
-        exit(1);
-    }
-
-    return 0;
-}
 
 int login(char* ip, int port)
 {
@@ -211,11 +207,11 @@ int login(char* ip, int port)
     printf("Enter your password: ");
     scanf(" %10s", password);
 
-    char credentials[BUFFER_SIZE];
+    char credentials[PACKET_SIZE];
     sprintf(credentials,"%s:%s", username, password);
     
     spunk(sock, LOGIN, credentials);
-    char response[BUFFER_SIZE];
+    char response[PACKET_SIZE];
     eavesdrop(sock, response);
 
     if (response[0])
@@ -264,7 +260,6 @@ int main(int argc, char* argv[])
             return 0;
             break;
     }
-
 
     printf("\nThanks for playing!\n");
 
