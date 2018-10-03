@@ -5,6 +5,7 @@
 #include <string.h> 
 #include <stdbool.h>
 #include <unistd.h>
+#include <time.h>
 #include <arpa/inet.h>
 
 #include "constants.h"
@@ -15,26 +16,28 @@
 
 char field[NUM_TILES_X][NUM_TILES_Y];
 int remaining_mines = 10;
+int sock;
 
-char* eavesdrop(int sock)
+char* eavesdrop()
 {
     static char response[PACKET_SIZE];
+    memset(response, 0, sizeof(response));
     if (read(sock, response, PACKET_SIZE) <= 0)
     {
         printf("Connection failure.\n");
         exit(1);
     }
-    printf("Response: %s\n", response);
+    printf("Response: '%s' (len %d)\n", response, (int)strlen(response));
     return response;
 }
 
-void spunk(int sock, int protocol, const char* message)
+void spunk(int protocol, const char* message)
 {
     char packet[PACKET_SIZE] = {0};
     packet[0] = itoc(protocol);
     strncat(packet, message, 99);
     printf("Sending '%s'...\n", packet);
-    
+    printf("sock: %d\n", sock);
     if (write(sock, packet, PACKET_SIZE) < 0)
     {
         printf("Connection failure.\n");
@@ -45,11 +48,18 @@ void spunk(int sock, int protocol, const char* message)
 void update_tile(int x, int y, const char c)
 {
     printf("Attempting to update x:%d y:%d with %c\n", x, y, c);
-    field[x][y] = c;
+
+    if (x < 0 || x > 9 || y < 0 || y > 9)
+    {
+        printf("jhapisugapisfyghas\n");
+    }
+    else
+        field[x][y] = c;
 }
 
 void draw_field()
 {
+    system("clear");
     printf("\n\n\nRemaining mines: %d\n\n ", remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
@@ -113,8 +123,10 @@ int option(int* x_pos_ref, int* y_pos_ref)
     return option == 'P' ? FLAG_TILE : REVEAL_TILE;
 }
 
-int game(int sock)
+int game()
 {
+    spunk(PLAY, "");
+
     int protocol, x_pos, y_pos;
 
     draw_field();
@@ -127,14 +139,12 @@ int game(int sock)
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos); 
 
-        spunk(sock, protocol, pos_request);
+        spunk(protocol, pos_request);
         switch (protocol)
         {
             case FLAG_TILE:
                 if(*(response = eavesdrop(sock)) == TERMINATOR)
-                {
                     printf("\nNo mine at that position!\n");
-                }
                 else
                 {
                     remaining_mines = ctoi(*response);
@@ -145,10 +155,10 @@ int game(int sock)
                 while(*(response = eavesdrop(sock)) != TERMINATOR)
                 {
                     if (*(response+2) == MINE)
-                    {
                         gameover = true;   
-                    }
                     update_tile(ctoi(*(response)), ctoi(*(response+1)), *(response+2));    
+                    draw_field();
+                    usleep(1000 * 100);
                 }
                 break;
             default:
@@ -175,7 +185,7 @@ int login(const char* ip, int port)
     struct sockaddr_in address;
     struct sockaddr_in serv_addr; 
     
-    int sock = 0;
+    // int sock = 0;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     {
@@ -213,9 +223,8 @@ int login(const char* ip, int port)
     char credentials[PACKET_SIZE];
     sprintf(credentials,"%s:%s", username, password);
     
-    spunk(sock, LOGIN, credentials);
+    spunk(LOGIN, credentials);
     char* response = eavesdrop(sock);
-
     if (*response)
     {
         return sock;
@@ -255,38 +264,31 @@ int menu()
     }
 }
 
-void leaderboard(int sock)
+void leaderboard()
 {
-    
-    
-    
-    
-    
-    
+    spunk(LEADERBOARD, "");
     
     
     
     printf("==========================================================================");
     printf("There is no information currently stored in the leaderboard. Try again later.");
     printf("==========================================================================");
-
-
 }
 
 int main(int argc, char* argv[])
 {
     const char* ip = argv[1];
     int port = atoi(argv[2]);
-    int sock = login(ip, port);
+    sock = login(ip, port);
  
     switch (menu())
     {
         case PLAY:
-            game(sock);
+            game();
             break;
 
         case LEADERBOARD:
-            leaderboard(sock);
+            leaderboard();
             break;
     }
 
