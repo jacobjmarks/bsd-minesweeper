@@ -50,7 +50,6 @@ void update_tile(int x, int y, const char c)
 
 void draw_field()
 {
-    system("clear");
     printf("\n\n\nRemaining mines: %d\n\n ", remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
@@ -245,7 +244,7 @@ int menu()
         scanf("%d", &selection);
     } while (selection < 1 || selection > 3);
     
-    switch selection
+    switch (selection)
     {
         case 1:
             return PLAY;
@@ -258,6 +257,19 @@ int menu()
 
 void leaderboard(int sock)
 {
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    printf("==========================================================================");
+    printf("There is no information currently stored in the leaderboard. Try again later.");
+    printf("==========================================================================");
+
 
 }
 
