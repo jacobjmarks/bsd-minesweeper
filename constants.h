@@ -11,8 +11,9 @@
 // Responses
 #define TERMINATOR 'T'
 
-#define QUIT 0
-#define WIN 1
-#define LOSE 2
+
+#define PACKET_SIZE 100
+
+enum { QUIT, LOSE, WIN, REVEAL_TILE, FLAG_TILE, LOGIN };
 
 #endif
