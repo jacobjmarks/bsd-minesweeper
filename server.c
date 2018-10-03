@@ -8,12 +8,18 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "constants.h"
-#include "tile.h"
 
 #define ctoi(char)(char - '0')
 #define itoc(int)(int + '0')
 
 #define NUM_MINES 10
+
+typedef struct {
+    int adjacent_mines;
+    bool revealed;
+    bool is_mine;
+    bool sent;
+} Tile;
 
 typedef struct {
     Tile tiles[NUM_TILES_X][NUM_TILES_Y];
@@ -148,131 +154,154 @@ void* client_thread(void* data) {
 
     ThreadData td = *(ThreadData*)data;
 
-    GameState* gs = create_gamestate();
-
     printf("T%x: Listening...\n", tid);
-    while (true) {
+
+    int menu_selection;
+
+    do {
         char request[PACKET_SIZE];
         if (read(td.bsd.sock, request, PACKET_SIZE) <= 0) {
             printf("T%x exiting: Error connecting to client.\n", tid);
             break;
         }
-        int protocol = ctoi(request[0]);
+        menu_selection = ctoi(request[0]);
 
-        printf("T%x serving {\n", tid);
-        printf("    Protocol: %d\n", protocol);
-        printf("    Message:  %s\n", request + 1);
-        printf("}\n");
+        switch(menu_selection) {
+            case PLAY: {
+                printf("T%x starts playing...\n", tid);
+                GameState* gs = create_gamestate();
+                time_t start_time = time(NULL);
 
-        switch (protocol) {
-            case REVEAL_TILE: {
-                int pos_x = ctoi(request[1]);
-                int pos_y = ctoi(request[2]);
+                while (true) {
+                    char request[PACKET_SIZE];
+                    if (read(td.bsd.sock, request, PACKET_SIZE) <= 0) {
+                        printf("T%x exiting: Error connecting to client.\n", tid);
+                        free(gs);
+                        break;
+                    }
+                    int protocol = ctoi(request[0]);
 
-                printf("Revealing tile %d:%d...\n", pos_x, pos_y);
+                    printf("T%x serving {\n", tid);
+                    printf("    Protocol: %d\n", protocol);
+                    printf("    Message:  %s\n", request + 1);
+                    printf("}\n");
 
-                Tile* tile = &gs->tiles[pos_x][pos_y];
+                    switch (protocol) {
+                        case REVEAL_TILE: {
+                            int pos_x = ctoi(request[1]);
+                            int pos_y = ctoi(request[2]);
 
-                if (tile->revealed) {
-                    char response[PACKET_SIZE] = {0};
-                    response[0] = 'T';
-                    printf("Responding: %s\n", response);
-                    send(td.bsd.sock, &response, PACKET_SIZE, 0);
-                    break;
-                }
+                            printf("Revealing tile %d:%d...\n", pos_x, pos_y);
 
-                if (tile->is_mine) {
-                    // Stream all mine positions
-                    for (int y = 0; y < NUM_TILES_Y; y++) {
-                        for (int x = 0; x < NUM_TILES_X; x++) {
-                            if (gs->tiles[x][y].is_mine) {
+                            Tile* tile = &gs->tiles[pos_x][pos_y];
+
+                            if (tile->revealed) {
                                 char response[PACKET_SIZE] = {0};
-                                response[0] = itoc(x);
-                                response[1] = itoc(y);
-                                response[2] = '*';
+                                response[0] = 'T';
                                 printf("Responding: %s\n", response);
                                 send(td.bsd.sock, &response, PACKET_SIZE, 0);
+                                break;
                             }
+
+                            if (tile->is_mine) {
+                                // Stream all mine positions
+                                for (int y = 0; y < NUM_TILES_Y; y++) {
+                                    for (int x = 0; x < NUM_TILES_X; x++) {
+                                        if (gs->tiles[x][y].is_mine) {
+                                            char response[PACKET_SIZE] = {0};
+                                            response[0] = itoc(x);
+                                            response[1] = itoc(y);
+                                            response[2] = '*';
+                                            printf("Responding: %s\n", response);
+                                            send(td.bsd.sock, &response, PACKET_SIZE, 0);
+                                            tile->sent = true;
+                                        }
+                                    }
+                                }
+
+                                char terminate[PACKET_SIZE] = {0};
+                                terminate[0] = 'T';
+                                printf("Responding: %s\n", terminate);
+                                send(td.bsd.sock, &terminate, PACKET_SIZE, 0);
+
+                                break;
+                            }
+
+                            reveal_and_traverse(pos_x, pos_y, gs);
+
+                            // Stream all revealed tiles
+                            for (int y = 0; y < NUM_TILES_Y; y++) {
+                                for (int x = 0; x < NUM_TILES_X; x++) {
+                                    Tile* tile = &gs->tiles[x][y];
+                                    if (!tile->is_mine && tile->revealed && !tile->sent) {
+                                        char response[PACKET_SIZE] = {0};
+                                        response[0] = itoc(x);
+                                        response[1] = itoc(y);
+                                        response[2] = itoc(tile->adjacent_mines);
+                                        printf("Responding: %s\n", response);
+                                        send(td.bsd.sock, &response, PACKET_SIZE, 0);
+                                        tile->sent = true;
+                                    }
+                                }
+                            }
+
+                            char terminate[PACKET_SIZE] = {0};
+                            terminate[0] = 'T';
+                            printf("Responding: %s\n", terminate);
+                            send(td.bsd.sock, &terminate, PACKET_SIZE, 0);
+
+                            break;
                         }
-                    }
+                        case FLAG_TILE: {
+                            int pos_x = ctoi(request[1]);
+                            int pos_y = ctoi(request[2]);
 
-                    char terminate[PACKET_SIZE] = {0};
-                    terminate[0] = 'T';
-                    printf("Responding: %s\n", terminate);
-                    send(td.bsd.sock, &terminate, PACKET_SIZE, 0);
+                            printf("Flagging tile %d:%d...\n", pos_x, pos_y);
 
-                    break;
-                }
+                            Tile* tile = &gs->tiles[pos_x][pos_y];
 
-                reveal_and_traverse(pos_x, pos_y, gs);
+                            if (!tile->is_mine) {
+                                char response[PACKET_SIZE] = {0};
+                                response[0] = 'T';
+                                printf("Responding: %s\n", response);
+                                send(td.bsd.sock, &response, PACKET_SIZE, 0);
+                                break;
+                            }
 
-                // Stream all revealed tiles
-                for (int y = 0; y < NUM_TILES_Y; y++) {
-                    for (int x = 0; x < NUM_TILES_X; x++) {
-                        Tile* tile = &gs->tiles[x][y];
-                        if (!tile->is_mine && tile->revealed) {
+                            // Flag and return remaining number of mines...
+
+                            tile->revealed = true;
+                            tile->sent = true;
+
+                            int mines_remaining = 0;
+
+                            for (int y = 0; y < NUM_TILES_Y; y++) {
+                                for (int x = 0; x < NUM_TILES_X; x++) {
+                                    Tile* tile = &gs->tiles[x][y];
+                                    if (tile->is_mine && !tile->revealed) {
+                                        mines_remaining++;
+                                    }
+                                }
+                            }
+                            
                             char response[PACKET_SIZE] = {0};
-                            response[0] = itoc(x);
-                            response[1] = itoc(y);
-                            response[2] = itoc(tile->adjacent_mines);
+                            response[0] = itoc(mines_remaining);
                             printf("Responding: %s\n", response);
                             send(td.bsd.sock, &response, PACKET_SIZE, 0);
+
+                            break;
                         }
+                        default: break;
                     }
                 }
-
-                char terminate[PACKET_SIZE] = {0};
-                terminate[0] = 'T';
-                printf("Responding: %s\n", terminate);
-                send(td.bsd.sock, &terminate, PACKET_SIZE, 0);
-
-                break;
             }
-            case FLAG_TILE: {
-                int pos_x = ctoi(request[1]);
-                int pos_y = ctoi(request[2]);
+            case LEADERBOARD: {
 
-                printf("Flagging tile %d:%d...\n", pos_x, pos_y);
-
-                Tile* tile = &gs->tiles[pos_x][pos_y];
-
-                if (!tile->is_mine) {
-                    char response[PACKET_SIZE] = {0};
-                    response[0] = 'T';
-                    printf("Responding: %s\n", response);
-                    send(td.bsd.sock, &response, PACKET_SIZE, 0);
-                    break;
-                }
-
-                // Flag and return remaining number of mines...
-
-                tile->revealed = true;              
-
-                int mines_remaining = 0;
-
-                for (int y = 0; y < NUM_TILES_Y; y++) {
-                    for (int x = 0; x < NUM_TILES_X; x++) {
-                        Tile* tile = &gs->tiles[x][y];
-                        if (tile->is_mine && !tile->revealed) {
-                            mines_remaining++;
-                        }
-                    }
-                }
-                
-                char response[PACKET_SIZE] = {0};
-                response[0] = itoc(mines_remaining);
-                printf("Responding: %s\n", response);
-                send(td.bsd.sock, &response, PACKET_SIZE, 0);
-
-                break;
             }
-            default: {
-                break;
-            }
+            default: break;
         }
-    }
+    } while (menu_selection == LEADERBOARD);
 
-    free(gs);
     return NULL;
 }
 
