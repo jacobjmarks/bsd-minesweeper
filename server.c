@@ -112,6 +112,7 @@ BSD create_socket(int port) {
 
 GameState* create_gamestate() {
     GameState* gs = malloc(sizeof(GameState));
+    memset(gs, 0, sizeof(GameState));
     place_mines(gs->tiles);
     set_adjacent_mines(gs->tiles);
     return gs;
