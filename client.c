@@ -131,9 +131,9 @@ int game(int sock)
         switch (protocol)
         {
             case FLAG_TILE:
-                if(*(response = eavesdrop(sock)) != TERMINATOR)
+                if(*(response = eavesdrop(sock)) == TERMINATOR)
                 {
-                    printf("You take the majority of dance songs, and strip away the dance beat... there's not a lot left.");
+                    printf("\nNo mine at that position!\n");
                 }
                 else
                 {
@@ -199,7 +199,7 @@ int login(const char* ip, int port)
         exit(1);
     }
 
-    printf(" Connection established.\n");
+    printf("Connection established.\n");
     printf("You are required to login with your registered username and password.\n\n");
 
     char username[10];
