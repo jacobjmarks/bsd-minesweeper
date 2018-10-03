@@ -148,7 +148,7 @@ int game(int sock)
                     {
                         gameover = true;   
                     }
-                    update_tile(*(response), *(response+1), *(response+2));    
+                    update_tile(ctoi(*(response)), ctoi(*(response+1)), *(response+2));    
                 }
                 break;
             default:
