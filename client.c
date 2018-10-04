@@ -9,7 +9,6 @@
 #include <arpa/inet.h>
 
 #include "constants.h"
-#include "tile.h"
 
 #define ctoi(c) (c-'0')
 #define itoc(i) (i+'0')
@@ -235,35 +234,6 @@ int login(const char* ip, int port)
     exit(1);
 }
 
-int menu()
-{
-    printf
-        (
-            "\nWelcome to the Minesweeper gaming system.\n\n"
-            "Please enter a selection:\n"
-            "<1> Play Minesweeper\n"
-            "<2> Show Leaderboard\n"
-            "<3> Quit\n\n"
-        );
-           
-    int selection;
-    do
-    {
-        printf("Selection option (1-3): ");
-        scanf("%d", &selection);
-    } while (selection < 1 || selection > 3);
-    
-    switch (selection)
-    {
-        case 1:
-            return PLAY;
-        case 2:
-            return LEADERBOARD;
-        case 3:
-            return QUIT;
-    }
-}
-
 void leaderboard()
 {
     spunk(LEADERBOARD, "");
@@ -281,18 +251,34 @@ int main(int argc, char* argv[])
     int port = atoi(argv[2]);
     sock = login(ip, port);
  
-    switch (menu())
+    printf
+        (
+            "\nWelcome to the Minesweeper gaming system.\n\n"
+            "Please enter a selection:\n"
+            "<1> Play Minesweeper\n"
+            "<2> Show Leaderboard\n"
+            "<3> Quit\n\n"
+        );
+           
+    int selection;
+    while(selection != QUIT)
     {
-        case PLAY:
-            game();
-            break;
-
-        case LEADERBOARD:
-            leaderboard();
-            break;
+        printf("Selection option (1-3): ");
+        scanf("%d", &selection);
+        
+        switch (selection)
+        {
+            case 1:
+                game();
+                break;
+            case 2:
+                leaderboard();
+                break;
+        }
+    
     }
-
-    printf("\nThanks for playing!\n");
+    
+    printf("Thanks for playing!");
 
     return 0;
 }
