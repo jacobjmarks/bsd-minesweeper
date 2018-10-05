@@ -15,7 +15,9 @@
 
 #define DEBUG 1
 
-char field[NUM_TILES_X][NUM_TILES_Y];
+char field[NUM_TILES_X * NUM_TILES_Y];
+#define f(x, y) (field[x * NUM_TILES_X + y])
+
 int remaining_mines = 10;
 int sock;
 
@@ -65,7 +67,8 @@ void update_tile(int x, int y, const char c)
         printf("jhapisugapisfyghas\n");
     }
     else
-        field[x][y] = c;
+        // field[x][y] = c;
+        f(x, y) = c;
 }
 
 void draw_field()
@@ -86,7 +89,7 @@ void draw_field()
         printf("%c|", 65 + y);
         for (int x = 0; x < NUM_TILES_X; x++)
         {
-            char c = field[x][y];
+            char c = f(x, y);
             printf("%c ", c ? c : ' ');
         }
         printf("\n");
@@ -136,10 +139,12 @@ int option(int* x_pos_ref, int* y_pos_ref)
 
 int game()
 {
+    // field = {0};
+    memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(field[0]));
     spunk(PLAY, "");
 
-    int protocol, x_pos, y_pos, gameover;
-
+    int protocol, x_pos, y_pos;
+    int gameover = 0;
 
     draw_field();
     while(protocol = option(&x_pos, &y_pos))
@@ -167,8 +172,10 @@ int game()
             case REVEAL_TILE:
                 while((response = eavesdrop(sock))[0] != TERMINATOR)
                 {
-                    if (response[2] == MINE)
-                        gameover = true;
+                    if(response[2] == MINE)
+                    {
+                        gameover = 1;
+                    }
                     update_tile(ctoi(response[0]), ctoi(response[1]), response[2]);    
                     draw_field();
                     usleep(1000 * 50);
@@ -178,13 +185,18 @@ int game()
                 printf("Client protocol error! Consult programmers!");
                 break;
         }
-
         draw_field();
-
         if (remaining_mines == 0)
-            return WIN;  
-        if (gameover)
+        {
+            printf("You won!!!\n");
+            return WIN;
+        }
+        // printf("gameover: %d", )
+        if (gameover == 1)
+        {
+            printf("Game over!!!\n");
             return LOSE;
+        }
     }
     return QUIT;
 }
@@ -235,7 +247,7 @@ int login(const char* ip, int port)
     
     spunk(LOGIN, credentials);
     char* response = eavesdrop();
-    
+
     if (atoi(response))
     {
         return sock;
@@ -248,7 +260,6 @@ int login(const char* ip, int port)
 void leaderboard()
 {
     printf("==========================================================================\n");
-
 
     spunk(LEADERBOARD, "");   
     char* response = eavesdrop();        
@@ -269,29 +280,26 @@ void leaderboard()
     printf("==========================================================================\n");
 }
 
-
-
 int main(int argc, char* argv[])
 {
     const char* ip = argv[1];
     int port = atoi(argv[2]);
     sock = login(ip, port);
-
-    printf
+       
+    int selection;
+    while(selection != QUIT)
+    {
+        printf
         (
             "\nWelcome to the Minesweeper gaming system.\n\n"
             "Please enter a selection:\n"
             "<1> Play Minesweeper\n"
             "<2> Show Leaderboard\n"
             "<3> Quit\n\n"
+            "Selection option (1-3): "
         );
-           
-    int selection;
-    while(selection != QUIT)
-    {
-        printf("Selection option (1-3): ");
+
         scanf("%d", &selection);
-        
         switch (selection)
         {
             case 1:
