@@ -12,7 +12,7 @@
 
 #define ctoi(c) (c-'0')
 #define itoc(i) (i+'0')
-
+#define itoascii(i) (((int)i) - 65)
 #define DEBUG 1
 
 char field[NUM_TILES_X * NUM_TILES_Y];
@@ -20,7 +20,6 @@ char field[NUM_TILES_X * NUM_TILES_Y];
 
 int remaining_mines = 10;
 int sock;
-
 
 char* eavesdrop()
 {
@@ -127,7 +126,7 @@ int option(int* x_pos_ref, int* y_pos_ref)
         printf("Select position: ");
         scanf(" %s2", position);
         x_pos = ctoi(position[1]) - 1;
-        y_pos = ((int) position[0]) - 65;
+        y_pos = itoascii(position[0]);
         x_valid = x_pos >= 0 && x_pos < NUM_TILES_X;
         y_valid = y_pos >= 0 && y_pos < NUM_TILES_Y;
     } while (!x_valid || !y_valid);
@@ -139,8 +138,7 @@ int option(int* x_pos_ref, int* y_pos_ref)
 
 int game()
 {
-    // field = {0};
-    memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(field[0]));
+    memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(char));
     spunk(PLAY, "");
 
     int protocol, x_pos, y_pos;
@@ -174,7 +172,7 @@ int game()
                 {
                     if(response[2] == MINE)
                     {
-                        gameover = 1;
+                        gameover = true;
                     }
                     update_tile(ctoi(response[0]), ctoi(response[1]), response[2]);    
                     draw_field();
@@ -191,7 +189,6 @@ int game()
             printf("You won!!!\n");
             return WIN;
         }
-        // printf("gameover: %d", )
         if (gameover == 1)
         {
             printf("Game over!!!\n");
@@ -262,8 +259,8 @@ void leaderboard()
     printf("==========================================================================\n");
 
     spunk(LEADERBOARD, "");   
-    char* response = eavesdrop();        
-    if (response[0] == TERMINATOR)
+    char* response;
+    if ((response = eavesdrop())[0] == TERMINATOR)
         printf("There is no information currently stored in the leaderboard. Try again later.\n");
 
     while(response[0] != TERMINATOR)
