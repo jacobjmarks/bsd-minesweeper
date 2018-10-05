@@ -73,19 +73,14 @@ void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
-int create_socket(int port) {
-    int server_fd, new_socket;
+int init_server(int port) {
+    int server_fd;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
     
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-    
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("setsockopt");
         exit(EXIT_FAILURE);
     }
 
@@ -103,12 +98,7 @@ int create_socket(int port) {
         exit(EXIT_FAILURE);
     }
 
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
-
-    return new_socket;
+    return server_fd;
 }
 
 GameState* create_gamestate() {
@@ -329,6 +319,7 @@ int main(int argc, char* argv[]) {
     srand(time(NULL));
 
     int port = atoi(argv[1]);
+    int server_fd = init_server(port);
 
     bool create_new_client = true;
     int sock;
@@ -336,7 +327,10 @@ int main(int argc, char* argv[]) {
     while (true) {
         if (create_new_client) {
             printf("Waiting for socket connection...\n");
-            sock = create_socket(port);
+            if ((sock = accept(server_fd, NULL, NULL)) < 0) {
+                perror("accept");
+                exit(EXIT_FAILURE);
+            }
             printf("New client listening...\n");
         }
         create_new_client = false;
