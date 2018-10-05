@@ -11,6 +11,7 @@
 // Responses
 #define TERMINATOR 'T'
 
+#define DELIM ","
 
 #define PACKET_SIZE 100
 
