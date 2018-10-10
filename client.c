@@ -207,6 +207,7 @@ int game()
             return LOSE;
         }
     }
+    spunk(QUIT, "");
     return QUIT;
 }
 
