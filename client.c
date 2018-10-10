@@ -288,6 +288,12 @@ void leaderboard()
 
 int main(int argc, char* argv[])
 {
+    if (argc != 3)
+    {
+        printf("Invalid usage! Should be: client.o [ip] [port]\n");
+        return 1;
+    }
+ 
     const char* ip = argv[1];
     int port = atoi(argv[2]);
     sock = login(ip, port);
