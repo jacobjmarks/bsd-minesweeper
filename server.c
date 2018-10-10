@@ -336,9 +336,11 @@ void* client_thread(void* data) {
                         default: break;
                     }
                 }
+                break;
             }
             case LEADERBOARD: {
                 HighScore_t* score = leaderboard;
+                
                 while (score != NULL) {
                     char response[PACKET_SIZE] = {0};
                     sprintf(response, "%s,%d,%d,%d",
@@ -352,10 +354,13 @@ void* client_thread(void* data) {
                     send(td.sock, &response, PACKET_SIZE, 0);
                     score = score->next;
                 }
+
                 char terminate[PACKET_SIZE] = {0};
                 terminate[0] = 'T';
                 printf("Responding: %s\n", terminate);
                 send(td.sock, &terminate, PACKET_SIZE, 0);
+
+                break;
             }
             default: break;
         }
