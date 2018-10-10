@@ -15,11 +15,7 @@
 #define itoascii(i) (((int)i) - 65)
 #define DEBUG 1
 
-// #define f(x, y) (gs->field[x * NUM_TILES_X + y])
-
-// int remaining_mines = 10;
 int sock;
-
 
 typedef struct GameState {
     char field[NUM_TILES_X][NUM_TILES_Y];
@@ -147,7 +143,6 @@ int option(int* x_pos_ref, int* y_pos_ref)
 
 int game()
 {
-    // GameState_t gs = (GameState_t)malloc(sizeof(GameState_t));
     GameState_t gs;
     memset(&gs, 0, sizeof(GameState_t));
 
@@ -155,14 +150,11 @@ int game()
     gs.remaining_mines = 10;
     // gs.remaining_mines = eavesdrop();
 
-    // char field[NUM_TILES_X * NUM_TILES_Y];
-    // memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(char));
-
     int protocol, x_pos, y_pos;
     int gameover = 0;
 
     draw_field(&gs);
-    while(protocol = option(&x_pos, &y_pos))
+    while((protocol = option(&x_pos, &y_pos)) != QUIT)
     {
         char* response;
         char pos_request[PACKET_SIZE] = {0};
@@ -193,7 +185,7 @@ int game()
                     }
                     update_tile(&gs, ctoi(response[0]), ctoi(response[1]), response[2]);    
                     draw_field(&gs);
-                    usleep(1000 * 50);
+                    usleep(1000 * 10);
                 }
                 break;
             default:
@@ -316,16 +308,16 @@ int main(int argc, char* argv[])
         scanf("%d", &selection);
         switch (selection)
         {
-            case 1:
+            case PLAY:
                 game();
                 break;
-            case 2:
+            case LEADERBOARD:
                 leaderboard();
                 break;
         }
     }
     
-    printf("Thanks for playing!");
+    printf("\nThanks for playing!\n");
 
     return 0;
 }
