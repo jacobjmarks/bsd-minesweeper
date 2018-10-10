@@ -322,7 +322,24 @@ void* client_thread(void* data) {
                 }
             }
             case LEADERBOARD: {
+                HighScore_t* score = leaderboard;
+                while (score != NULL) {
+                    char response[PACKET_SIZE] = {0};
+                    sprintf(response, "%s,%d,%d,%d",
+                        score->user,
+                        score->best_time,
+                        score->games_won,
+                        score->games_played
+                    );
 
+                    printf("Responding: %s\n", response);
+                    send(td.sock, &response, PACKET_SIZE, 0);
+                    score = score->next;
+                }
+                char terminate[PACKET_SIZE] = {0};
+                terminate[0] = 'T';
+                printf("Responding: %s\n", terminate);
+                send(td.sock, &terminate, PACKET_SIZE, 0);
             }
             default: break;
         }
