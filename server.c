@@ -260,9 +260,9 @@ void* client_thread(void* data) {
                 score->games_played++;
                 time_t start_time = time(NULL);
 
-                bool gameOver = false;
+                bool game_over = false;
 
-                while (!gameOver) {
+                while (!game_over) {
                     char request[PACKET_SIZE];
                     if (read(sock, request, PACKET_SIZE) <= 0) {
                         printf("T%x exiting: Error connecting to client.\n", tid);
@@ -314,7 +314,7 @@ void* client_thread(void* data) {
                                 printf("Responding: %s\n", terminate);
                                 send(sock, &terminate, PACKET_SIZE, 0);
 
-                                gameOver = true;
+                                game_over = true;
 
                                 break;
                             }
@@ -382,7 +382,7 @@ void* client_thread(void* data) {
                             send(sock, &response, PACKET_SIZE, 0);
                             
                             if (!mines_remaining) {
-                                gameOver = true;
+                                game_over = true;
                                 score->games_won++;
                                 time_t elapsed = time(NULL) - start_time;
                                 if (elapsed < score->best_time) {
@@ -390,6 +390,10 @@ void* client_thread(void* data) {
                                 }
                             }
 
+                            break;
+                        }
+                        case QUIT: {
+                            return NULL;
                             break;
                         }
                         default: break;
@@ -420,6 +424,9 @@ void* client_thread(void* data) {
                 send(sock, &terminate, PACKET_SIZE, 0);
 
                 break;
+            }
+            case QUIT: {
+                return NULL;
             }
             default: break;
         }

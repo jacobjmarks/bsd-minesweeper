@@ -76,7 +76,7 @@ void update_tile(GameState_t* gs, int x, int y, const char c)
 
 void draw_field(GameState_t* gs)
 {
-    system("clear");
+    // system("clear");
     printf("\n\n\nRemaining mines: %d\n\n ", gs->remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
@@ -187,6 +187,9 @@ int game()
                     draw_field(&gs);
                     usleep(1000 * 10);
                 }
+                break;
+            case QUIT:
+                printf("Client protocol error! Consult programmers!");
                 break;
             default:
                 printf("Client protocol error! Consult programmers!");
