@@ -15,10 +15,16 @@
 #define itoascii(i) (((int)i) - 65)
 #define DEBUG 1
 
-#define f(x, y) (field[x * NUM_TILES_X + y])
+// #define f(x, y) (gs->field[x * NUM_TILES_X + y])
 
-int remaining_mines = 10;
+// int remaining_mines = 10;
 int sock;
+
+
+typedef struct GameState {
+    char field[NUM_TILES_X][NUM_TILES_Y];
+    int remaining_mines;
+} GameState_t;
 
 char* eavesdrop()
 {
@@ -53,7 +59,7 @@ void spunk(int protocol, const char* message)
     }
 }
 
-void update_tile(char* field, int x, int y, const char c)
+void update_tile(GameState_t* gs, int x, int y, const char c)
 {
     if (DEBUG)
     {
@@ -66,15 +72,16 @@ void update_tile(char* field, int x, int y, const char c)
     }
     else
     {
-        f(x, y) = c;
+        // f(x, y) = c;
+        gs->field[x][y] = c;
     }
         
 }
 
-void draw_field(char* field)
+void draw_field(GameState_t* gs)
 {
     system("clear");
-    printf("\n\n\nRemaining mines: %d\n\n ", remaining_mines);
+    printf("\n\n\nRemaining mines: %d\n\n ", gs->remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
         printf(" %d", x+1);
@@ -89,7 +96,8 @@ void draw_field(char* field)
         printf("%c|", 65 + y);
         for (int x = 0; x < NUM_TILES_X; x++)
         {
-            char c = f(x, y);
+            // char c = f(x, y);
+            char c = gs->field[x][y];
             printf("%c ", c ? c : ' ');
         }
         printf("\n");
@@ -139,15 +147,21 @@ int option(int* x_pos_ref, int* y_pos_ref)
 
 int game()
 {
-    char field[NUM_TILES_X * NUM_TILES_Y];
-    memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(char));
-    
+    // GameState_t gs = (GameState_t)malloc(sizeof(GameState_t));
+    GameState_t gs;
+    memset(&gs, 0, sizeof(GameState_t));
+
     spunk(PLAY, "");
+    gs.remaining_mines = 10;
+    // gs.remaining_mines = eavesdrop();
+
+    // char field[NUM_TILES_X * NUM_TILES_Y];
+    // memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(char));
 
     int protocol, x_pos, y_pos;
     int gameover = 0;
 
-    draw_field(field);
+    draw_field(&gs);
     while(protocol = option(&x_pos, &y_pos))
     {
         char* response;
@@ -166,8 +180,8 @@ int game()
                 }
                 else
                 {
-                    remaining_mines = ctoi(response[0]);
-                    update_tile(field, x_pos, y_pos, FLAG);
+                    gs.remaining_mines = ctoi(response[0]);
+                    update_tile(&gs, x_pos, y_pos, FLAG);
                 }
                 break;
             case REVEAL_TILE:
@@ -177,8 +191,8 @@ int game()
                     {
                         gameover = true;
                     }
-                    update_tile(field, ctoi(response[0]), ctoi(response[1]), response[2]);    
-                    draw_field(field);
+                    update_tile(&gs, ctoi(response[0]), ctoi(response[1]), response[2]);    
+                    draw_field(&gs);
                     usleep(1000 * 50);
                 }
                 break;
@@ -186,8 +200,8 @@ int game()
                 printf("Client protocol error! Consult programmers!");
                 break;
         }
-        draw_field(field);
-        if (remaining_mines == 0)
+        draw_field(&gs);
+        if (gs.remaining_mines == 0)
         {
             printf("You won!!!\n");
             return WIN;
