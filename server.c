@@ -30,15 +30,15 @@ typedef struct {
     int sock;
 } ThreadData;
 
-typedef struct {
+typedef struct HighScore {
     char user[32];
     int best_time;
     int games_won;
     int games_played;
     struct HighScore* next;
-} HighScore;
+} HighScore_t;
 
-HighScore* leaderboard;
+HighScore_t* leaderboard;
 
 void print_tile_state(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     printf("[adjacent_mines revealed is_mine]\n");
@@ -86,8 +86,6 @@ void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
 int init_server(int port) {
     int server_fd;
     struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
     
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -144,19 +142,19 @@ void reveal_and_traverse(int x, int y, GameState* gs) {
     }
 }
 
-HighScore* get_highscore(char* user) {
+HighScore_t* get_highscore(char* user) {
     printf("Getting highscore for user: %s\n", user);
     if (!leaderboard) {
         printf("  Creating new leaderboard\n");
-        leaderboard = malloc(sizeof(HighScore));
+        leaderboard = malloc(sizeof(HighScore_t));
         strcpy(leaderboard->user, user);
         printf("    User: %s\n", leaderboard->user);
         return leaderboard;
     }
 
     printf("  Searching leaderboard\n");
-    HighScore* previous;
-    HighScore* score = leaderboard;
+    HighScore_t* previous;
+    HighScore_t* score = leaderboard;
     while (score) {
         printf("    %s %s\n", score->user, user);
         if (strcmp(score->user, user) == 0) {
@@ -168,7 +166,7 @@ HighScore* get_highscore(char* user) {
     }
 
     printf("  Creating new entry\n");
-    score = malloc(sizeof(HighScore));
+    score = malloc(sizeof(HighScore_t));
     strcpy(score->user, user);
     printf("    User: %s\n", score->user);
 
@@ -180,7 +178,7 @@ void* client_thread(void* data) {
 
     ThreadData td = *(ThreadData*)data;
 
-    HighScore* score = get_highscore(td.user);
+    HighScore_t* score = get_highscore(td.user);
 
     printf("T%x: Listening...\n", tid);
 
