@@ -148,6 +148,7 @@ HighScore_t* get_highscore(char* user) {
         printf("  Creating new leaderboard\n");
         leaderboard = malloc(sizeof(HighScore_t));
         strcpy(leaderboard->user, user);
+        leaderboard->best_time = 999;
         printf("    User: %s\n", leaderboard->user);
         return leaderboard;
     }
@@ -168,6 +169,7 @@ HighScore_t* get_highscore(char* user) {
     printf("  Creating new entry\n");
     score = malloc(sizeof(HighScore_t));
     strcpy(score->user, user);
+    score->best_time = 999;
     printf("    User: %s\n", score->user);
 
     return previous->next = score;
@@ -196,9 +198,12 @@ void* client_thread(void* data) {
             case PLAY: {
                 printf("T%x starts playing...\n", tid);
                 GameState_t* gs = create_gamestate();
+                score->games_played++;
                 time_t start_time = time(NULL);
 
-                while (true) {
+                bool gameOver = false;
+
+                while (!gameOver) {
                     char request[PACKET_SIZE];
                     if (read(td.sock, request, PACKET_SIZE) <= 0) {
                         printf("T%x exiting: Error connecting to client.\n", tid);
@@ -249,6 +254,8 @@ void* client_thread(void* data) {
                                 terminate[0] = 'T';
                                 printf("Responding: %s\n", terminate);
                                 send(td.sock, &terminate, PACKET_SIZE, 0);
+
+                                gameOver = true;
 
                                 break;
                             }
@@ -314,6 +321,15 @@ void* client_thread(void* data) {
                             response[0] = itoc(mines_remaining);
                             printf("Responding: %s\n", response);
                             send(td.sock, &response, PACKET_SIZE, 0);
+                            
+                            if (!mines_remaining) {
+                                gameOver = true;
+                                score->games_won++;
+                                time_t elapsed = time(NULL) - start_time;
+                                if (elapsed < score->best_time) {
+                                    score->best_time = elapsed;
+                                }
+                            }
 
                             break;
                         }
@@ -343,7 +359,7 @@ void* client_thread(void* data) {
             }
             default: break;
         }
-    } while (menu_selection == LEADERBOARD);
+    } while (true);
 
     return NULL;
 }
