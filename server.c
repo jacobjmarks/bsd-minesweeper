@@ -25,11 +25,6 @@ typedef struct GameState {
     Tile_t tiles[NUM_TILES_X][NUM_TILES_Y];
 } GameState_t;
 
-typedef struct ThreadData {
-    char user[32];
-    int sock;
-} ThreadData_t;
-
 typedef struct HighScore {
     char user[32];
     int best_time;
@@ -199,13 +194,15 @@ HighScore_t* get_highscore(char* user) {
 
 void* client_thread(void* data) {
     int tid = pthread_self();
-    ThreadData_t td = *(ThreadData_t*)data;
+    int sock = *(int*)data;
+
+    char this_user[32];
 
     bool logged_in = false;
 
     while (!logged_in) {
         char request[PACKET_SIZE];
-        if (read(td.sock, request, PACKET_SIZE) <= 0) {
+        if (read(sock, request, PACKET_SIZE) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
             return NULL;
         }
@@ -228,7 +225,7 @@ void* client_thread(void* data) {
             printf("Authenticating %s:%s...", user, pass);
             if (logged_in = authenticate(user, pass)) {
                 printf("  Granted");
-                strcpy(td.user, user);
+                strcpy(this_user, user);
             } else {
                 printf("  Denied");
             }
@@ -239,10 +236,10 @@ void* client_thread(void* data) {
         char response[PACKET_SIZE] = {0};
         strcat(response, logged_in ? "1" : "0");
         printf("Responding: %s\n", response);
-        send(td.sock, &response, PACKET_SIZE, 0);
+        send(sock, &response, PACKET_SIZE, 0);
     }
 
-    HighScore_t* score = get_highscore(td.user);
+    HighScore_t* score = get_highscore(this_user);
 
     printf("T%x: Listening...\n", tid);
 
@@ -250,7 +247,7 @@ void* client_thread(void* data) {
 
     do {
         char request[PACKET_SIZE];
-        if (read(td.sock, request, PACKET_SIZE) <= 0) {
+        if (read(sock, request, PACKET_SIZE) <= 0) {
             printf("T%x exiting: Error connecting to client.\n", tid);
             break;
         }
@@ -267,7 +264,7 @@ void* client_thread(void* data) {
 
                 while (!gameOver) {
                     char request[PACKET_SIZE];
-                    if (read(td.sock, request, PACKET_SIZE) <= 0) {
+                    if (read(sock, request, PACKET_SIZE) <= 0) {
                         printf("T%x exiting: Error connecting to client.\n", tid);
                         free(gs);
                         break;
@@ -292,7 +289,7 @@ void* client_thread(void* data) {
                                 char response[PACKET_SIZE] = {0};
                                 response[0] = 'T';
                                 printf("Responding: %s\n", response);
-                                send(td.sock, &response, PACKET_SIZE, 0);
+                                send(sock, &response, PACKET_SIZE, 0);
                                 break;
                             }
 
@@ -306,7 +303,7 @@ void* client_thread(void* data) {
                                             response[1] = itoc(y);
                                             response[2] = '*';
                                             printf("Responding: %s\n", response);
-                                            send(td.sock, &response, PACKET_SIZE, 0);
+                                            send(sock, &response, PACKET_SIZE, 0);
                                             tile->sent = true;
                                         }
                                     }
@@ -315,7 +312,7 @@ void* client_thread(void* data) {
                                 char terminate[PACKET_SIZE] = {0};
                                 terminate[0] = 'T';
                                 printf("Responding: %s\n", terminate);
-                                send(td.sock, &terminate, PACKET_SIZE, 0);
+                                send(sock, &terminate, PACKET_SIZE, 0);
 
                                 gameOver = true;
 
@@ -334,7 +331,7 @@ void* client_thread(void* data) {
                                         response[1] = itoc(y);
                                         response[2] = itoc(tile->adjacent_mines);
                                         printf("Responding: %s\n", response);
-                                        send(td.sock, &response, PACKET_SIZE, 0);
+                                        send(sock, &response, PACKET_SIZE, 0);
                                         tile->sent = true;
                                     }
                                 }
@@ -343,7 +340,7 @@ void* client_thread(void* data) {
                             char terminate[PACKET_SIZE] = {0};
                             terminate[0] = 'T';
                             printf("Responding: %s\n", terminate);
-                            send(td.sock, &terminate, PACKET_SIZE, 0);
+                            send(sock, &terminate, PACKET_SIZE, 0);
 
                             break;
                         }
@@ -359,7 +356,7 @@ void* client_thread(void* data) {
                                 char response[PACKET_SIZE] = {0};
                                 response[0] = 'T';
                                 printf("Responding: %s\n", response);
-                                send(td.sock, &response, PACKET_SIZE, 0);
+                                send(sock, &response, PACKET_SIZE, 0);
                                 break;
                             }
 
@@ -382,7 +379,7 @@ void* client_thread(void* data) {
                             char response[PACKET_SIZE] = {0};
                             response[0] = itoc(mines_remaining);
                             printf("Responding: %s\n", response);
-                            send(td.sock, &response, PACKET_SIZE, 0);
+                            send(sock, &response, PACKET_SIZE, 0);
                             
                             if (!mines_remaining) {
                                 gameOver = true;
@@ -413,14 +410,14 @@ void* client_thread(void* data) {
                     );
 
                     printf("Responding: %s\n", response);
-                    send(td.sock, &response, PACKET_SIZE, 0);
+                    send(sock, &response, PACKET_SIZE, 0);
                     score = score->next;
                 }
 
                 char terminate[PACKET_SIZE] = {0};
                 terminate[0] = 'T';
                 printf("Responding: %s\n", terminate);
-                send(td.sock, &terminate, PACKET_SIZE, 0);
+                send(sock, &terminate, PACKET_SIZE, 0);
 
                 break;
             }
@@ -451,11 +448,8 @@ int main(int argc, char* argv[]) {
             perror("accept");
             exit(EXIT_FAILURE);
         } else {
-            ThreadData_t data;
-            // strcpy(data.user, user);
-            data.sock = sock;
             pthread_t pid;
-            pthread_create(&pid, NULL, client_thread, &data);
+            pthread_create(&pid, NULL, client_thread, &sock);
             printf("New client listening...\n");
         }
     }
