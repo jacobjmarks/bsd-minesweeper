@@ -61,17 +61,14 @@ void update_tile(GameState_t* gs, int x, int y, const char c)
     {
         printf("Attempting to update x:%d y:%d with %c\n", x, y, c);
     }
-    
     if (x < 0 || x > 9 || y < 0 || y > 9)
     {
-        printf("jhapisugapisfyghas\n");
+        printf("INVALID FIELD UPDATE!!!!\n");
     }
     else
     {
-        // f(x, y) = c;
         gs->field[x][y] = c;
-    }
-        
+    }   
 }
 
 void draw_field(GameState_t* gs)
