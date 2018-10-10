@@ -26,9 +26,19 @@ typedef struct {
 } GameState;
 
 typedef struct {
-    char* user;
+    char user[32];
     int sock;
 } ThreadData;
+
+typedef struct {
+    char user[32];
+    int best_time;
+    int games_won;
+    int games_played;
+    struct HighScore* next;
+} HighScore;
+
+HighScore* leaderboard;
 
 void print_tile_state(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     printf("[adjacent_mines revealed is_mine]\n");
@@ -134,10 +144,43 @@ void reveal_and_traverse(int x, int y, GameState* gs) {
     }
 }
 
+HighScore* get_highscore(char* user) {
+    printf("Getting highscore for user: %s\n", user);
+    if (!leaderboard) {
+        printf("  Creating new leaderboard\n");
+        leaderboard = malloc(sizeof(HighScore));
+        strcpy(leaderboard->user, user);
+        printf("    User: %s\n", leaderboard->user);
+        return leaderboard;
+    }
+
+    printf("  Searching leaderboard\n");
+    HighScore* previous;
+    HighScore* score = leaderboard;
+    while (score) {
+        printf("    %s %s\n", score->user, user);
+        if (strcmp(score->user, user) == 0) {
+            printf("      FOUND\n");
+            return score;
+        }
+        previous = score;
+        score = score->next;
+    }
+
+    printf("  Creating new entry\n");
+    score = malloc(sizeof(HighScore));
+    strcpy(score->user, user);
+    printf("    User: %s\n", score->user);
+
+    return previous->next = score;
+}
+
 void* client_thread(void* data) {
     int tid = pthread_self();
 
     ThreadData td = *(ThreadData*)data;
+
+    HighScore* score = get_highscore(td.user);
 
     printf("T%x: Listening...\n", tid);
 
@@ -372,7 +415,7 @@ int main(int argc, char* argv[]) {
                     printf("Granted\n");
                     printf("Creating new client thread...");
                     ThreadData data;
-                    data.user = user;
+                    strcpy(data.user, user);
                     data.sock = sock;
                     pthread_t pid;
                     pthread_create(&pid, NULL, client_thread, &data);
