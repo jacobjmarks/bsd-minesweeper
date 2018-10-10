@@ -299,7 +299,7 @@ int main(int argc, char* argv[])
     sock = login(ip, port);
        
     int selection;
-    while(selection != QUIT)
+    do
     {
         printf
         (
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
                 leaderboard();
                 break;
         }
-    }
+    } while (selection != QUIT);
     
     printf("\nThanks for playing!\n");
 
