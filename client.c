@@ -15,7 +15,6 @@
 #define itoascii(i) (((int)i) - 65)
 #define DEBUG 1
 
-char field[NUM_TILES_X * NUM_TILES_Y];
 #define f(x, y) (field[x * NUM_TILES_X + y])
 
 int remaining_mines = 10;
@@ -54,7 +53,7 @@ void spunk(int protocol, const char* message)
     }
 }
 
-void update_tile(int x, int y, const char c)
+void update_tile(char* field, int x, int y, const char c)
 {
     if (DEBUG)
     {
@@ -66,11 +65,13 @@ void update_tile(int x, int y, const char c)
         printf("jhapisugapisfyghas\n");
     }
     else
-        // field[x][y] = c;
+    {
         f(x, y) = c;
+    }
+        
 }
 
-void draw_field()
+void draw_field(char* field)
 {
     system("clear");
     printf("\n\n\nRemaining mines: %d\n\n ", remaining_mines);
@@ -138,13 +139,15 @@ int option(int* x_pos_ref, int* y_pos_ref)
 
 int game()
 {
+    char field[NUM_TILES_X * NUM_TILES_Y];
     memset(field, 0, NUM_TILES_X * NUM_TILES_Y * sizeof(char));
+    
     spunk(PLAY, "");
 
     int protocol, x_pos, y_pos;
     int gameover = 0;
 
-    draw_field();
+    draw_field(field);
     while(protocol = option(&x_pos, &y_pos))
     {
         char* response;
@@ -164,7 +167,7 @@ int game()
                 else
                 {
                     remaining_mines = ctoi(response[0]);
-                    update_tile(x_pos, y_pos, FLAG);
+                    update_tile(field, x_pos, y_pos, FLAG);
                 }
                 break;
             case REVEAL_TILE:
@@ -174,8 +177,8 @@ int game()
                     {
                         gameover = true;
                     }
-                    update_tile(ctoi(response[0]), ctoi(response[1]), response[2]);    
-                    draw_field();
+                    update_tile(field, ctoi(response[0]), ctoi(response[1]), response[2]);    
+                    draw_field(field);
                     usleep(1000 * 50);
                 }
                 break;
@@ -183,7 +186,7 @@ int game()
                 printf("Client protocol error! Consult programmers!");
                 break;
         }
-        draw_field();
+        draw_field(field);
         if (remaining_mines == 0)
         {
             printf("You won!!!\n");
