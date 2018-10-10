@@ -14,21 +14,21 @@
 
 #define NUM_MINES 10
 
-typedef struct {
+typedef struct Tile {
     int adjacent_mines;
     bool revealed;
     bool is_mine;
     bool sent;
-} Tile;
+} Tile_t;
 
-typedef struct {
-    Tile tiles[NUM_TILES_X][NUM_TILES_Y];
-} GameState;
+typedef struct GameState {
+    Tile_t tiles[NUM_TILES_X][NUM_TILES_Y];
+} GameState_t;
 
-typedef struct {
+typedef struct ThreadData {
     char user[32];
     int sock;
-} ThreadData;
+} ThreadData_t;
 
 typedef struct HighScore {
     char user[32];
@@ -40,21 +40,21 @@ typedef struct HighScore {
 
 HighScore_t* leaderboard;
 
-void print_tile_state(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
+void print_tile_state(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     printf("[adjacent_mines revealed is_mine]\n");
     for (int y = 0; y < NUM_TILES_Y; y++) {
         for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile tile = tiles[x][y];
+            Tile_t tile = tiles[x][y];
             printf("[%d %d %d] ", tile.adjacent_mines, tile.revealed, tile.is_mine);
         }
         printf("\n");
     }
 }
 
-void place_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
+void place_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     for (int i = 0; i < NUM_MINES; i++) {
         int x_pos, y_pos;
-        Tile* tile;
+        Tile_t* tile;
 
         do {
             x_pos = rand() % NUM_TILES_X;
@@ -66,10 +66,10 @@ void place_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
-void set_adjacent_mines(Tile tiles[NUM_TILES_X][NUM_TILES_Y]) {
+void set_adjacent_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     for (int y = 0; y < NUM_TILES_Y; y++) {
         for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile* tile = &tiles[x][y];
+            Tile_t* tile = &tiles[x][y];
             int adjacent_mines = 0;
             for (int i = -1; i < 2; i++) {
                 for (int j = -1; j < 2; j++) {
@@ -109,17 +109,17 @@ int init_server(int port) {
     return server_fd;
 }
 
-GameState* create_gamestate() {
-    GameState* gs = malloc(sizeof(GameState));
-    memset(gs, 0, sizeof(GameState));
+GameState_t* create_gamestate() {
+    GameState_t* gs = malloc(sizeof(GameState_t));
+    memset(gs, 0, sizeof(GameState_t));
     place_mines(gs->tiles);
     set_adjacent_mines(gs->tiles);
     return gs;
 }
 
-void reveal_and_traverse(int x, int y, GameState* gs) {
+void reveal_and_traverse(int x, int y, GameState_t* gs) {
     printf("RAT %d %d\n", x, y);
-    Tile* self = &gs->tiles[x][y];
+    Tile_t* self = &gs->tiles[x][y];
     self->revealed = true;
 
     if (self->adjacent_mines != 0) return;
@@ -130,7 +130,7 @@ void reveal_and_traverse(int x, int y, GameState* gs) {
             if (x+i < 0 || x+i >= NUM_TILES_X) continue;
             if (y+j < 0 || y+j >= NUM_TILES_Y) continue;
 
-            Tile* tile = &gs->tiles[x+i][y+j];
+            Tile_t* tile = &gs->tiles[x+i][y+j];
             if (tile->revealed) continue;
 
             if (tile->adjacent_mines == 0) {
@@ -176,7 +176,7 @@ HighScore_t* get_highscore(char* user) {
 void* client_thread(void* data) {
     int tid = pthread_self();
 
-    ThreadData td = *(ThreadData*)data;
+    ThreadData_t td = *(ThreadData_t*)data;
 
     HighScore_t* score = get_highscore(td.user);
 
@@ -195,7 +195,7 @@ void* client_thread(void* data) {
         switch(menu_selection) {
             case PLAY: {
                 printf("T%x starts playing...\n", tid);
-                GameState* gs = create_gamestate();
+                GameState_t* gs = create_gamestate();
                 time_t start_time = time(NULL);
 
                 while (true) {
@@ -219,7 +219,7 @@ void* client_thread(void* data) {
 
                             printf("Revealing tile %d:%d...\n", pos_x, pos_y);
 
-                            Tile* tile = &gs->tiles[pos_x][pos_y];
+                            Tile_t* tile = &gs->tiles[pos_x][pos_y];
 
                             if (tile->revealed) {
                                 char response[PACKET_SIZE] = {0};
@@ -258,7 +258,7 @@ void* client_thread(void* data) {
                             // Stream all revealed tiles
                             for (int y = 0; y < NUM_TILES_Y; y++) {
                                 for (int x = 0; x < NUM_TILES_X; x++) {
-                                    Tile* tile = &gs->tiles[x][y];
+                                    Tile_t* tile = &gs->tiles[x][y];
                                     if (!tile->is_mine && tile->revealed && !tile->sent) {
                                         char response[PACKET_SIZE] = {0};
                                         response[0] = itoc(x);
@@ -284,7 +284,7 @@ void* client_thread(void* data) {
 
                             printf("Flagging tile %d:%d...\n", pos_x, pos_y);
 
-                            Tile* tile = &gs->tiles[pos_x][pos_y];
+                            Tile_t* tile = &gs->tiles[pos_x][pos_y];
 
                             if (!tile->is_mine) {
                                 char response[PACKET_SIZE] = {0};
@@ -303,7 +303,7 @@ void* client_thread(void* data) {
 
                             for (int y = 0; y < NUM_TILES_Y; y++) {
                                 for (int x = 0; x < NUM_TILES_X; x++) {
-                                    Tile* tile = &gs->tiles[x][y];
+                                    Tile_t* tile = &gs->tiles[x][y];
                                     if (tile->is_mine && !tile->revealed) {
                                         mines_remaining++;
                                     }
@@ -412,7 +412,7 @@ int main(int argc, char* argv[]) {
                 if (authenticated) {
                     printf("Granted\n");
                     printf("Creating new client thread...");
-                    ThreadData data;
+                    ThreadData_t data;
                     strcpy(data.user, user);
                     data.sock = sock;
                     pthread_t pid;
