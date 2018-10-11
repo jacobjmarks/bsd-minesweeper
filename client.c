@@ -1,17 +1,57 @@
-#include "constants.h"
-#include "comm.h"
-
+#include <stdio.h> 
+#include <sys/socket.h> 
+#include <stdlib.h> 
+#include <netinet/in.h> 
+#include <string.h> 
+#include <stdbool.h>
+#include <unistd.h>
+#include <time.h>
+#include <arpa/inet.h>
 #include <ctype.h>
+
+#include "common.h"
 
 #define MINE '*'
 #define FLAG '+'
-
 #define DELIM ","
 
 typedef struct GameState {
     char field[NUM_TILES_X][NUM_TILES_Y];
     int remaining_mines;
 } GameState_t;
+
+char* eavesdrop(int sock)
+{
+    static char response[PACKET_SIZE];
+    memset(response, 0, sizeof(response));
+    if (read(sock, response, PACKET_SIZE) <= 0)
+    {
+        printf("Connection failure.\n");
+        exit(1);
+    }
+    if (DEBUG)
+    {
+        printf("Response: '%s' (len %d)\n", response, (int)strlen(response));
+    }
+    return response;
+}
+
+void spunk(int sock, int protocol, const char* message)
+{
+    char packet[PACKET_SIZE] = {0};
+    packet[0] = itoc(protocol);
+    strncat(packet, message, PACKET_SIZE - 1);
+
+    if (DEBUG)
+    {
+        printf("Sending '%s'...\n", packet);
+    }
+    if (write(sock, packet, PACKET_SIZE) < 0)
+    {
+        printf("Connection failure.\n");
+        exit(1);
+    }
+}
 
 void update_tile(GameState_t* gs, int x, int y, const char c)
 {

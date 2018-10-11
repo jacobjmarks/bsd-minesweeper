@@ -7,10 +7,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "constants.h"
 
-#define ctoi(char)(char - '0')
-#define itoc(int)(int + '0')
+#include "common.h"
 
 #define NUM_MINES 10
 #define NUM_CLIENT_THREADS 10
