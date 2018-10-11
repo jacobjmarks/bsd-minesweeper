@@ -1,13 +1,10 @@
 #include "constants.h"
 #include "comm.h"
 
-int sock;
-
 typedef struct GameState {
     char field[NUM_TILES_X][NUM_TILES_Y];
     int remaining_mines;
 } GameState_t;
-
 
 void update_tile(GameState_t* gs, int x, int y, const char c)
 {
@@ -81,7 +78,7 @@ int option(int* x_pos_ref, int* y_pos_ref)
     return option == 'P' ? FLAG_TILE : REVEAL_TILE;
 }
 
-int game()
+int game(int sock)
 {
     GameState_t gs;
     memset(&gs, 0, sizeof(GameState_t));
@@ -157,6 +154,7 @@ int login(const char* ip, int port)
     printf("\nConnecting to %s:%d...\n", ip, port);
     
     struct sockaddr_in serv_addr; 
+    int sock;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     {
@@ -206,7 +204,7 @@ int login(const char* ip, int port)
     exit(1);
 }
 
-void leaderboard()
+void leaderboard(int sock)
 {
     printf("==========================================================================\n");
 
@@ -239,7 +237,7 @@ int main(int argc, char* argv[])
  
     const char* ip = argv[1];
     int port = atoi(argv[2]);
-    sock = login(ip, port);
+    int sock = login(ip, port);
        
     int selection;
     do
@@ -255,13 +253,15 @@ int main(int argc, char* argv[])
         );
 
         scanf("%d", &selection);
+        while(getchar() != '\n');
+
         switch (selection)
         {
             case PLAY:
-                game();
+                game(sock);
                 break;
             case LEADERBOARD:
-                leaderboard();
+                leaderboard(sock);
                 break;
         }
     } while (selection != QUIT);
