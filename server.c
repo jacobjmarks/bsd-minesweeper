@@ -373,23 +373,17 @@ void play_game(ClientSession_t* session) {
         printf("}\n");
 
         switch (protocol) {
-            case REVEAL_TILE: {
-                int pos_x = ctoi(request[1]);
-                int pos_y = ctoi(request[2]);
-                reveal_tile(pos_x, pos_y, session);
+            case REVEAL_TILE:
+                reveal_tile(ctoi(request[1]), ctoi(request[2]), session);
                 break;
-            }
-            case FLAG_TILE: {
-                int pos_x = ctoi(request[1]);
-                int pos_y = ctoi(request[2]);
-                flag_tile(pos_x, pos_y, session);
+            case FLAG_TILE:
+                flag_tile(ctoi(request[1]), ctoi(request[2]), session);
                 break;
-            }
-            case QUIT: {
+            case QUIT:
                 session->gamestate->game_over = true;
                 break;
-            }
-            default: break;
+            default:
+                break;
         }
     }
 }
@@ -429,35 +423,29 @@ ClientSession_t* create_client_session(int tid, int sock) {
 }
 
 void serve_client(ClientSession_t* session) {
-    if (!session) return;
-
     printf("T%d Listening...\n", session->tid);
 
-    int menu_selection;
-
-    do {
+    while (true) {
         char request[PACKET_SIZE];
         if (read(session->sock, request, PACKET_SIZE) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
         }
-        menu_selection = ctoi(request[0]);
+        int menu_selection = ctoi(request[0]);
 
         switch(menu_selection) {
-            case PLAY: {
+            case PLAY:
                 play_game(session);
                 break;
-            }
-            case LEADERBOARD: {
+            case LEADERBOARD:
                 stream_leaderboard(session->sock);
                 break;
-            }
-            case QUIT: {
+            case QUIT:
                 return;
-            }
-            default: break;
+            default:
+                break;
         }
-    } while (true);
+    }
 }
 
 int get_client() {
