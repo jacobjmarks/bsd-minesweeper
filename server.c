@@ -422,13 +422,12 @@ void stream_leaderboard(int sock) {
 }
 
 ClientSession_t* create_client_session(int tid, int sock) {
+    char user[32];
+
+    if (client_login(sock, user) != 0) return NULL;
+
     ClientSession_t* session = calloc(1, sizeof(ClientSession_t));
-
-    if (client_login(sock, session->user) != 0) {
-        free(session);
-        return NULL;
-    }
-
+    strcpy(session->user, user);
     session->tid = tid;
     session->sock = sock;
     session->score = get_highscore(session->user);
@@ -489,8 +488,12 @@ void* handle_client_queue(void* data) {
     while(true) {
         if (clients) {
             int sock = get_client();
+
             pthread_mutex_unlock(&mutex);
-            serve_client(create_client_session(tid, sock));
+
+            ClientSession_t* session = create_client_session(tid, sock);
+            if (session) serve_client(session);
+
             pthread_mutex_lock(&mutex);
         } else {
             pthread_cond_wait(&new_client, &mutex);
