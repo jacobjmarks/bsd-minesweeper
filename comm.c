@@ -14,7 +14,6 @@
 #define itoc(i) (i+'0')
 #define itoascii(i) (((int)i) - 65)
 
-
 #define DEBUG 1
 
 char* eavesdrop(int sock)
@@ -36,8 +35,13 @@ char* eavesdrop(int sock)
 void spunk(int sock, int protocol, const char* message)
 {
     char packet[PACKET_SIZE] = {0};
-    packet[0] = itoc(protocol);
-    strncat(packet, message, 99);
+
+    if (protocol)
+    {
+        packet[0] = itoc(protocol);
+    }
+
+    strncat(packet, message, protocol ? 99 : 100);
 
     if (DEBUG)
     {

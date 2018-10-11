@@ -174,7 +174,7 @@ int game()
             return LOSE;
         }
     }
-    spunk(QUIT, "");
+    spunk(sock, QUIT, "");
     return QUIT;
 }
 
