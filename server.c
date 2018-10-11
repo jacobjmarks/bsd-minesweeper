@@ -214,7 +214,7 @@ int client_login(int sock, char* user) {
         }
         int protocol = ctoi(request[0]);
 
-        if (protocol != LOGIN) return 0;
+        if (protocol != LOGIN) continue;
 
         printf("Serving {\n");
         printf("    Protocol: %d\n", protocol);
@@ -229,7 +229,7 @@ int client_login(int sock, char* user) {
 
         if (input_user != NULL && input_pass != NULL) {
             printf("Authenticating %s:%s...", input_user, input_pass);
-            if (authenticated = authenticate(input_user, input_pass)) {
+            if ((authenticated = authenticate(input_user, input_pass))) {
                 printf("  Granted");
                 strcpy(user, input_user);
             } else {
@@ -244,6 +244,8 @@ int client_login(int sock, char* user) {
         printf("Responding: %s\n", response);
         send(sock, &response, PACKET_SIZE, 0);
     }
+
+    return user == NULL ? 1 : 0;
 }
 
 void serve_client(int tid, int sock) {
