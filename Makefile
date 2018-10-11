@@ -1,13 +1,13 @@
 CC = gcc
 CFLAGS = -Wall
 
-all: server.o client.o
+all: server client
 
-server.o: server.c
+server: server.c
 	$(CC) $(CFLAGS) -pthread server.c -o server.o
 
-client.o: client.c
-	$(CC) $(CFLAGS) client.c -o client.o
+client: client.c comm.c
+	$(CC) $(CFLAGS) client.c comm.c -o client.o
 
 clean:
 	rm -f *.o
