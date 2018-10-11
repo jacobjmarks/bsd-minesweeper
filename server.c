@@ -24,6 +24,8 @@ typedef struct Tile {
 
 typedef struct GameState {
     Tile_t tiles[NUM_TILES_X][NUM_TILES_Y];
+    time_t start_time;
+    bool game_over;
 } GameState_t;
 
 typedef struct HighScore {
@@ -120,6 +122,7 @@ GameState_t* create_gamestate() {
     memset(gs, 0, sizeof(GameState_t));
     place_mines(gs->tiles);
     set_adjacent_mines(gs->tiles);
+    gs->game_over = false;
     return gs;
 }
 
@@ -248,6 +251,113 @@ int client_login(int sock, char* user) {
     return strlen(user) ? 0 : 1;
 }
 
+void reveal_tile(int pos_x, int pos_y, GameState_t* gs, int sock) {
+    printf("Revealing tile %d:%d...\n", pos_x, pos_y);
+
+    Tile_t* tile = &gs->tiles[pos_x][pos_y];
+
+    if (tile->revealed) {
+        char response[PACKET_SIZE] = {0};
+        response[0] = 'T';
+        printf("Responding: %s\n", response);
+        send(sock, &response, PACKET_SIZE, 0);
+        return;
+    }
+
+    if (tile->is_mine) {
+        // Stream all mine positions
+        for (int y = 0; y < NUM_TILES_Y; y++) {
+            for (int x = 0; x < NUM_TILES_X; x++) {
+                if (gs->tiles[x][y].is_mine) {
+                    char response[PACKET_SIZE] = {0};
+                    response[0] = itoc(x);
+                    response[1] = itoc(y);
+                    response[2] = '*';
+                    printf("Responding: %s\n", response);
+                    send(sock, &response, PACKET_SIZE, 0);
+                    tile->sent = true;
+                }
+            }
+        }
+
+        char terminate[PACKET_SIZE] = {0};
+        terminate[0] = 'T';
+        printf("Responding: %s\n", terminate);
+        send(sock, &terminate, PACKET_SIZE, 0);
+
+        gs->game_over = true;
+
+        return;
+    }
+
+    reveal_and_traverse(pos_x, pos_y, gs);
+
+    // Stream all revealed tiles
+    for (int y = 0; y < NUM_TILES_Y; y++) {
+        for (int x = 0; x < NUM_TILES_X; x++) {
+            Tile_t* tile = &gs->tiles[x][y];
+            if (!tile->is_mine && tile->revealed && !tile->sent) {
+                char response[PACKET_SIZE] = {0};
+                response[0] = itoc(x);
+                response[1] = itoc(y);
+                response[2] = itoc(tile->adjacent_mines);
+                printf("Responding: %s\n", response);
+                send(sock, &response, PACKET_SIZE, 0);
+                tile->sent = true;
+            }
+        }
+    }
+
+    char terminate[PACKET_SIZE] = {0};
+    terminate[0] = 'T';
+    printf("Responding: %s\n", terminate);
+    send(sock, &terminate, PACKET_SIZE, 0);
+}
+
+void flag_tile(int pos_x, int pos_y, GameState_t* gs, HighScore_t* score, int sock) {
+    printf("Flagging tile %d:%d...\n", pos_x, pos_y);
+
+    Tile_t* tile = &gs->tiles[pos_x][pos_y];
+
+    if (!tile->is_mine) {
+        char response[PACKET_SIZE] = {0};
+        response[0] = 'T';
+        printf("Responding: %s\n", response);
+        send(sock, &response, PACKET_SIZE, 0);
+        return;
+    }
+
+    // Flag and return remaining number of mines...
+
+    tile->revealed = true;
+    tile->sent = true;
+
+    int mines_remaining = 0;
+
+    for (int y = 0; y < NUM_TILES_Y; y++) {
+        for (int x = 0; x < NUM_TILES_X; x++) {
+            Tile_t* tile = &gs->tiles[x][y];
+            if (tile->is_mine && !tile->revealed) {
+                mines_remaining++;
+            }
+        }
+    }
+    
+    char response[PACKET_SIZE] = {0};
+    response[0] = itoc(mines_remaining);
+    printf("Responding: %s\n", response);
+    send(sock, &response, PACKET_SIZE, 0);
+    
+    if (!mines_remaining) {
+        gs->game_over = true;
+        score->games_won++;
+        time_t elapsed = time(NULL) - gs->start_time;
+        if (elapsed < score->best_time) {
+            score->best_time = elapsed;
+        }
+    }
+}
+
 void serve_client(int tid, int sock) {
     char user[32];
 
@@ -271,12 +381,10 @@ void serve_client(int tid, int sock) {
             case PLAY: {
                 printf("T%d starts playing...\n", tid);
                 GameState_t* gs = create_gamestate();
+                gs->start_time = time(NULL);
                 score->games_played++;
-                time_t start_time = time(NULL);
 
-                bool game_over = false;
-
-                while (!game_over) {
+                while (!gs->game_over) {
                     char request[PACKET_SIZE];
                     if (read(sock, request, PACKET_SIZE) <= 0) {
                         printf("T%d exiting: Error connecting to client.\n", tid);
@@ -294,120 +402,17 @@ void serve_client(int tid, int sock) {
                         case REVEAL_TILE: {
                             int pos_x = ctoi(request[1]);
                             int pos_y = ctoi(request[2]);
-
-                            printf("Revealing tile %d:%d...\n", pos_x, pos_y);
-
-                            Tile_t* tile = &gs->tiles[pos_x][pos_y];
-
-                            if (tile->revealed) {
-                                char response[PACKET_SIZE] = {0};
-                                response[0] = 'T';
-                                printf("Responding: %s\n", response);
-                                send(sock, &response, PACKET_SIZE, 0);
-                                break;
-                            }
-
-                            if (tile->is_mine) {
-                                // Stream all mine positions
-                                for (int y = 0; y < NUM_TILES_Y; y++) {
-                                    for (int x = 0; x < NUM_TILES_X; x++) {
-                                        if (gs->tiles[x][y].is_mine) {
-                                            char response[PACKET_SIZE] = {0};
-                                            response[0] = itoc(x);
-                                            response[1] = itoc(y);
-                                            response[2] = '*';
-                                            printf("Responding: %s\n", response);
-                                            send(sock, &response, PACKET_SIZE, 0);
-                                            tile->sent = true;
-                                        }
-                                    }
-                                }
-
-                                char terminate[PACKET_SIZE] = {0};
-                                terminate[0] = 'T';
-                                printf("Responding: %s\n", terminate);
-                                send(sock, &terminate, PACKET_SIZE, 0);
-
-                                game_over = true;
-
-                                break;
-                            }
-
-                            reveal_and_traverse(pos_x, pos_y, gs);
-
-                            // Stream all revealed tiles
-                            for (int y = 0; y < NUM_TILES_Y; y++) {
-                                for (int x = 0; x < NUM_TILES_X; x++) {
-                                    Tile_t* tile = &gs->tiles[x][y];
-                                    if (!tile->is_mine && tile->revealed && !tile->sent) {
-                                        char response[PACKET_SIZE] = {0};
-                                        response[0] = itoc(x);
-                                        response[1] = itoc(y);
-                                        response[2] = itoc(tile->adjacent_mines);
-                                        printf("Responding: %s\n", response);
-                                        send(sock, &response, PACKET_SIZE, 0);
-                                        tile->sent = true;
-                                    }
-                                }
-                            }
-
-                            char terminate[PACKET_SIZE] = {0};
-                            terminate[0] = 'T';
-                            printf("Responding: %s\n", terminate);
-                            send(sock, &terminate, PACKET_SIZE, 0);
-
+                            reveal_tile(pos_x, pos_y, gs, sock);
                             break;
                         }
                         case FLAG_TILE: {
                             int pos_x = ctoi(request[1]);
                             int pos_y = ctoi(request[2]);
-
-                            printf("Flagging tile %d:%d...\n", pos_x, pos_y);
-
-                            Tile_t* tile = &gs->tiles[pos_x][pos_y];
-
-                            if (!tile->is_mine) {
-                                char response[PACKET_SIZE] = {0};
-                                response[0] = 'T';
-                                printf("Responding: %s\n", response);
-                                send(sock, &response, PACKET_SIZE, 0);
-                                break;
-                            }
-
-                            // Flag and return remaining number of mines...
-
-                            tile->revealed = true;
-                            tile->sent = true;
-
-                            int mines_remaining = 0;
-
-                            for (int y = 0; y < NUM_TILES_Y; y++) {
-                                for (int x = 0; x < NUM_TILES_X; x++) {
-                                    Tile_t* tile = &gs->tiles[x][y];
-                                    if (tile->is_mine && !tile->revealed) {
-                                        mines_remaining++;
-                                    }
-                                }
-                            }
-                            
-                            char response[PACKET_SIZE] = {0};
-                            response[0] = itoc(mines_remaining);
-                            printf("Responding: %s\n", response);
-                            send(sock, &response, PACKET_SIZE, 0);
-                            
-                            if (!mines_remaining) {
-                                game_over = true;
-                                score->games_won++;
-                                time_t elapsed = time(NULL) - start_time;
-                                if (elapsed < score->best_time) {
-                                    score->best_time = elapsed;
-                                }
-                            }
-
+                            flag_tile(pos_x, pos_y, gs, score, sock);
                             break;
                         }
                         case QUIT: {
-                            game_over = true;
+                            gs->game_over = true;
                             break;
                         }
                         default: break;
