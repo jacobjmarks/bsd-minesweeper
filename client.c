@@ -1,21 +1,5 @@
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <stdlib.h> 
-#include <netinet/in.h> 
-#include <string.h> 
-#include <stdbool.h>
-#include <unistd.h>
-#include <time.h>
-#include <arpa/inet.h>
-
 #include "constants.h"
 #include "comm.h"
-
-#define ctoi(c) (c-'0')
-#define itoc(i) (i+'0')
-#define itoascii(i) (((int)i) - 65)
-
-#define DEBUG 1
 
 int sock;
 
@@ -66,17 +50,6 @@ void draw_field(GameState_t* gs)
         printf("\n");
     }
     printf("\n");
-}
-
-
-int reveal_position(int x_pos, int y_pos)
-{
-
-}
-
-int flag_position(int x_pos, int y_pos)
-{
-
 }
 
 int option(int* x_pos_ref, int* y_pos_ref)
@@ -183,7 +156,6 @@ int login(const char* ip, int port)
 {
     printf("\nConnecting to %s:%d...\n", ip, port);
     
-    struct sockaddr_in address;
     struct sockaddr_in serv_addr; 
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
