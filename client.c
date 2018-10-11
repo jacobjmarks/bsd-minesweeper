@@ -104,7 +104,7 @@ int option(int* x_pos_ref, int* y_pos_ref)
     do
     {
         printf("Select option <P, R, Q>: ");
-        scanf("%c1", &option);
+        scanf("%c", &option);
         while(getchar() != '\n');
 
         if (option == 'Q')
@@ -116,7 +116,7 @@ int option(int* x_pos_ref, int* y_pos_ref)
     do
     {
         printf("Select position: ");
-        scanf("%s2", position);
+        scanf("%2s", position);
         while(getchar() != '\n');
 
         x_pos = ctoi(position[1]) - 1;
