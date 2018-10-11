@@ -6,7 +6,6 @@ typedef struct GameState {
     int remaining_mines;
 } GameState_t;
 
-
 void update_tile(GameState_t* gs, int x, int y, const char c)
 {
     if (DEBUG)
@@ -254,6 +253,8 @@ int main(int argc, char* argv[])
         );
 
         scanf("%d", &selection);
+        while(getchar() != '\n');
+
         switch (selection)
         {
             case PLAY:
