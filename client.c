@@ -61,7 +61,7 @@ void update_tile(GameState_t* gs, int x, int y, const char c)
     }
     if (x < 0 || x > 9 || y < 0 || y > 9)
     {
-        printf("INVALID FIELD UPDATE!!!!\n");
+        printf("Invalid field update.\n");
     }
     else
     {
@@ -104,17 +104,21 @@ int option(int* x_pos_ref, int* y_pos_ref)
     do
     {
         printf("Select option <P, R, Q>: ");
-        scanf(" %c", &option);
-        while (getchar () != '\n' );
+        scanf("%c1", &option);
+        while(getchar() != '\n');
+
         if (option == 'Q')
+        {
             return QUIT;
+        }
     } while (!(option == 'P' || option == 'R') || isalpha(option) == 0);
 
     do
     {
         printf("Select position: ");
-        scanf(" %s2", position);
-        while (getchar () != '\n' );
+        scanf("%s2", position);
+        while(getchar() != '\n');
+
         x_pos = ctoi(position[1]) - 1;
         y_pos = itoascii(position[0]);
         x_valid = x_pos >= 0 && x_pos < NUM_TILES_X;
