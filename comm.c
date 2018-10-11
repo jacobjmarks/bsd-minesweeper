@@ -1,20 +1,5 @@
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <stdlib.h> 
-#include <netinet/in.h> 
-#include <string.h> 
-#include <stdbool.h>
-#include <unistd.h>
-#include <time.h>
-#include <arpa/inet.h>
-
 #include "constants.h"
-
-#define ctoi(c) (c-'0')
-#define itoc(i) (i+'0')
-#define itoascii(i) (((int)i) - 65)
-
-#define DEBUG 1
+#include "comm.h"
 
 char* eavesdrop(int sock)
 {
