@@ -275,6 +275,8 @@ void lose_game(GameState_t* gs, int sock) {
         }
     }
 
+    send_terminator(sock);
+
     gs->game_over = true;
 }
 
