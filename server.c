@@ -245,7 +245,7 @@ int client_login(int sock, char* user) {
         send(sock, &response, PACKET_SIZE, 0);
     }
 
-    return user == NULL ? 1 : 0;
+    return strlen(user) ? 0 : 1;
 }
 
 void serve_client(int tid, int sock) {
