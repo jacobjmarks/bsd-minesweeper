@@ -12,9 +12,8 @@
 #define ctoi(char)(char - '0')
 #define itoc(int)(int + '0')
 
-#define NUM_THREADS 4
-
 #define NUM_MINES 10
+#define NUM_CLIENT_THREADS 10
 
 typedef struct Tile {
     int adjacent_mines;
@@ -497,10 +496,10 @@ int main(int argc, char* argv[]) {
     int port = atoi(argv[1]);
     int server_fd = init_server(port);
 
-    int tids[NUM_THREADS];
-    pthread_t pthreads[NUM_THREADS];
+    int tids[NUM_CLIENT_THREADS];
+    pthread_t pthreads[NUM_CLIENT_THREADS];
 
-    for (int i = 0; i < NUM_THREADS; i++) {
+    for (int i = 0; i < NUM_CLIENT_THREADS; i++) {
         tids[i] = i;
         pthread_create(&pthreads[i], NULL, handle_client_queue, &tids[i]);
     }
