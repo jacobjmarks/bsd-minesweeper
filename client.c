@@ -1,6 +1,8 @@
 #include "constants.h"
 #include "comm.h"
 
+#include <ctype.h>
+
 typedef struct GameState {
     char field[NUM_TILES_X][NUM_TILES_Y];
     int remaining_mines;
@@ -40,7 +42,6 @@ void draw_field(GameState_t* gs)
         printf("%c|", 65 + y);
         for (int x = 0; x < NUM_TILES_X; x++)
         {
-            // char c = f(x, y);
             char c = gs->field[x][y];
             printf("%c ", c ? c : ' ');
         }
@@ -59,14 +60,16 @@ int option(int* x_pos_ref, int* y_pos_ref)
     {
         printf("Select option <P, R, Q>: ");
         scanf(" %c", &option);
+        while (getchar () != '\n' );
         if (option == 'Q')
             return QUIT;
-    } while (option != 'P' && option != 'R');
+    } while (!(option == 'P' || option == 'R') || isalpha(option) == 0);
 
     do
     {
         printf("Select position: ");
         scanf(" %s2", position);
+        while (getchar () != '\n' );
         x_pos = ctoi(position[1]) - 1;
         y_pos = itoascii(position[0]);
         x_valid = x_pos >= 0 && x_pos < NUM_TILES_X;
@@ -211,8 +214,10 @@ void leaderboard(int sock)
     spunk(sock, LEADERBOARD, "");   
     char* response;
     if ((response = eavesdrop(sock))[0] == TERMINATOR)
+    {
         printf("There is no information currently stored in the leaderboard. Try again later.\n");
-
+    }
+        
     while(response[0] != TERMINATOR)
     {
         char *name = strtok(response, DELIM);
