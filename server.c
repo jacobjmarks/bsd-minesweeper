@@ -452,7 +452,7 @@ int get_client() {
         if (client->waiting) {
             // Notify client no longer needs to wait
             char message[PACKET_SIZE] = {0};
-            message[0] = ctoi(PLAY);
+            message[0] = itoc(PLAY);
             printf("Notifying waiting client...\n");
             send(sock, &message, PACKET_SIZE, 0);
         }
@@ -508,7 +508,7 @@ void queue_client(int sock) {
     if (needs_to_wait) new_client->waiting = true;
 
     char message[PACKET_SIZE] = {0};
-    message[0] = ctoi(needs_to_wait ? QUEUED : PLAY);
+    message[0] = itoc(needs_to_wait ? QUEUED : PLAY);
     printf("Thread available: %s\n", needs_to_wait ? "NO" : "YES");
     send(sock, &message, PACKET_SIZE, 0);
 
