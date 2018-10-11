@@ -22,6 +22,7 @@ typedef struct Tile {
 
 typedef struct GameState {
     Tile_t tiles[NUM_TILES_X][NUM_TILES_Y];
+    int mines_remaining;
     time_t start_time;
     bool game_over;
 } GameState_t;
@@ -129,6 +130,7 @@ GameState_t* create_gamestate() {
     place_mines(gs->tiles);
     set_adjacent_mines(gs->tiles);
     gs->game_over = false;
+    gs->mines_remaining = NUM_MINES;
     return gs;
 }
 
@@ -319,28 +321,16 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     if (!tile->is_mine) return send_terminator(session->sock);
 
-    // Flag and return remaining number of mines...
-
     tile->revealed = true;
-    tile->sent = true;
 
-    int mines_remaining = 0;
-
-    for (int y = 0; y < NUM_TILES_Y; y++) {
-        for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile_t* tile = &session->gamestate->tiles[x][y];
-            if (tile->is_mine && !tile->revealed) {
-                mines_remaining++;
-            }
-        }
-    }
-    
     char response[PACKET_SIZE] = {0};
-    response[0] = itoc(mines_remaining);
+    response[0] = itoc(--session->gamestate->mines_remaining);
     printf("Responding: %s\n", response);
     send(session->sock, &response, PACKET_SIZE, 0);
+
+    tile->sent = true;
     
-    if (!mines_remaining) {
+    if (!session->gamestate->mines_remaining) {
         session->gamestate->game_over = true;
         session->score->games_won++;
         time_t elapsed = time(NULL) - session->gamestate->start_time;
