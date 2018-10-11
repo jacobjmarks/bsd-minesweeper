@@ -349,6 +349,68 @@ void flag_tile(int pos_x, int pos_y, GameState_t* gs, HighScore_t* score, int so
     }
 }
 
+void play_game(HighScore_t* score, int sock) {
+    // printf("T%d starts playing...\n", tid);
+    GameState_t* gs = create_gamestate();
+    gs->start_time = time(NULL);
+    score->games_played++;
+
+    while (!gs->game_over) {
+        char request[PACKET_SIZE];
+        if (read(sock, request, PACKET_SIZE) <= 0) {
+            // printf("T%d exiting: Error connecting to client.\n", tid);
+            free(gs);
+            break;
+        }
+        int protocol = ctoi(request[0]);
+
+        // printf("T%d serving {\n", tid);
+        // printf("    Protocol: %d\n", protocol);
+        // printf("    Message:  %s\n", request + 1);
+        // printf("}\n");
+
+        switch (protocol) {
+            case REVEAL_TILE: {
+                int pos_x = ctoi(request[1]);
+                int pos_y = ctoi(request[2]);
+                reveal_tile(pos_x, pos_y, gs, sock);
+                break;
+            }
+            case FLAG_TILE: {
+                int pos_x = ctoi(request[1]);
+                int pos_y = ctoi(request[2]);
+                flag_tile(pos_x, pos_y, gs, score, sock);
+                break;
+            }
+            case QUIT: {
+                gs->game_over = true;
+                break;
+            }
+            default: break;
+        }
+    }
+}
+
+void view_leaderboard(int sock) {
+    HighScore_t* score = leaderboard;
+
+    while (score != NULL) {
+        char response[PACKET_SIZE] = {0};
+        sprintf(response, "%s,%d,%d,%d",
+            score->user,
+            score->best_time,
+            score->games_won,
+            score->games_played
+        );
+
+        printf("Responding: %s\n", response);
+        send(sock, &response, PACKET_SIZE, 0);
+        score = score->next;
+    }
+
+    send_terminator(sock);
+}
+
 void serve_client(int tid, int sock) {
     char user[32];
 
@@ -370,66 +432,11 @@ void serve_client(int tid, int sock) {
 
         switch(menu_selection) {
             case PLAY: {
-                printf("T%d starts playing...\n", tid);
-                GameState_t* gs = create_gamestate();
-                gs->start_time = time(NULL);
-                score->games_played++;
-
-                while (!gs->game_over) {
-                    char request[PACKET_SIZE];
-                    if (read(sock, request, PACKET_SIZE) <= 0) {
-                        printf("T%d exiting: Error connecting to client.\n", tid);
-                        free(gs);
-                        break;
-                    }
-                    int protocol = ctoi(request[0]);
-
-                    printf("T%d serving {\n", tid);
-                    printf("    Protocol: %d\n", protocol);
-                    printf("    Message:  %s\n", request + 1);
-                    printf("}\n");
-
-                    switch (protocol) {
-                        case REVEAL_TILE: {
-                            int pos_x = ctoi(request[1]);
-                            int pos_y = ctoi(request[2]);
-                            reveal_tile(pos_x, pos_y, gs, sock);
-                            break;
-                        }
-                        case FLAG_TILE: {
-                            int pos_x = ctoi(request[1]);
-                            int pos_y = ctoi(request[2]);
-                            flag_tile(pos_x, pos_y, gs, score, sock);
-                            break;
-                        }
-                        case QUIT: {
-                            gs->game_over = true;
-                            break;
-                        }
-                        default: break;
-                    }
-                }
+                play_game(score, sock);
                 break;
             }
             case LEADERBOARD: {
-                HighScore_t* score = leaderboard;
-
-                while (score != NULL) {
-                    char response[PACKET_SIZE] = {0};
-                    sprintf(response, "%s,%d,%d,%d",
-                        score->user,
-                        score->best_time,
-                        score->games_won,
-                        score->games_played
-                    );
-
-                    printf("Responding: %s\n", response);
-                    send(sock, &response, PACKET_SIZE, 0);
-                    score = score->next;
-                }
-
-                send_terminator(sock);
-
+                view_leaderboard(sock);
                 break;
             }
             case QUIT: {
