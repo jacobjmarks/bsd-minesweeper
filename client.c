@@ -167,11 +167,14 @@ int game(int sock)
             case REVEAL_TILE:
                 while((response = eavesdrop(sock))[0] != TERMINATOR)
                 {
-                    if(response[2] == MINE)
+                    char response_x = ctoi(response[0]);
+                    char response_y = ctoi(response[1]);
+                    char response_char = response[2];
+                    if(response_char == MINE)
                     {
                         gameover = true;
                     }
-                    update_tile(&gs, ctoi(response[0]), ctoi(response[1]), response[2]);    
+                    update_tile(&gs, response_x, response_y, response_char);    
                     draw_field(&gs);
                     usleep(1000 * 10);
                 }
@@ -229,21 +232,15 @@ int login(const char* ip, int port)
         exit(1);
     }
 
-    printf("Connection established.\nEntering queue...\n");
+    printf("Connection established.\n");
 
-    char* sig;
-
-    sig = eavesdrop(sock);
-
-    // printf("sig assigned...\n");
-
-    while (ctoi(sig[0]) != PLAY)
+    if (ctoi(eavesdrop(sock)[0]) != PLAY)
     {
-        // printf("entered while.\n");
-        sig = eavesdrop(sock);
+        printf("Server is at capacity. You have been placed into a queue...\n");
+        eavesdrop(sock);
     }
 
-    printf("Dequeued. You are required to login with your registered username and password.\n\n");
+    printf("You are required to login with your registered username and password.\n\n");
 
     char username[10];
     char password[10];
@@ -270,7 +267,7 @@ int login(const char* ip, int port)
 
 void leaderboard(int sock)
 {
-    printf("==========================================================================\n");
+    printf("============================================================\n");
 
     spunk(sock, LEADERBOARD, "");   
     char* response;
@@ -286,11 +283,15 @@ void leaderboard(int sock)
         char *games_won = strtok(NULL, DELIM);
         char *games_played = strtok(NULL, DELIM);
         
-        printf("%s \t %s seconds \t %s games won, %s games played\n", name, seconds, games_won, games_played);
+        printf("%s \t %s seconds \t %s games won, %s games played\n",
+                name,
+                seconds,
+                games_won,
+                games_played);
         response = eavesdrop(sock);
     }            
 
-    printf("==========================================================================\n");
+    printf("============================================================\n");
 }
 
 int main(int argc, char* argv[])
