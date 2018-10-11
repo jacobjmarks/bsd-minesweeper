@@ -9,10 +9,12 @@
 #include <arpa/inet.h>
 
 #include "constants.h"
+#include "comm.h"
 
 #define ctoi(c) (c-'0')
 #define itoc(i) (i+'0')
 #define itoascii(i) (((int)i) - 65)
+
 #define DEBUG 1
 
 int sock;
@@ -22,38 +24,6 @@ typedef struct GameState {
     int remaining_mines;
 } GameState_t;
 
-char* eavesdrop()
-{
-    static char response[PACKET_SIZE];
-    memset(response, 0, sizeof(response));
-    if (read(sock, response, PACKET_SIZE) <= 0)
-    {
-        printf("Connection failure.\n");
-        exit(1);
-    }
-    if (DEBUG)
-    {
-        printf("Response: '%s' (len %d)\n", response, (int)strlen(response));
-    }
-    return response;
-}
-
-void spunk(int protocol, const char* message)
-{
-    char packet[PACKET_SIZE] = {0};
-    packet[0] = itoc(protocol);
-    strncat(packet, message, 99);
-
-    if (DEBUG)
-    {
-        printf("Sending '%s'...\n", packet);
-    }
-    if (write(sock, packet, PACKET_SIZE) < 0)
-    {
-        printf("Connection failure.\n");
-        exit(1);
-    }
-}
 
 void update_tile(GameState_t* gs, int x, int y, const char c)
 {
@@ -143,9 +113,9 @@ int game()
     GameState_t gs;
     memset(&gs, 0, sizeof(GameState_t));
 
-    spunk(PLAY, "");
+    spunk(sock, PLAY, "");
     gs.remaining_mines = 10;
-    // gs.remaining_mines = eavesdrop();
+    // gs.remaining_mines = eavesdrop(sock);
 
     int protocol, x_pos, y_pos;
     int gameover = 0;
@@ -159,7 +129,7 @@ int game()
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos); 
 
-        spunk(protocol, pos_request);
+        spunk(sock, protocol, pos_request);
         switch (protocol)
         {
             case FLAG_TILE:
@@ -248,8 +218,8 @@ int login(const char* ip, int port)
     char credentials[PACKET_SIZE];
     sprintf(credentials,"%s:%s", username, password);
     
-    spunk(LOGIN, credentials);
-    char* response = eavesdrop();
+    spunk(sock, LOGIN, credentials);
+    char* response = eavesdrop(sock);
 
     if (atoi(response))
     {
@@ -264,9 +234,9 @@ void leaderboard()
 {
     printf("==========================================================================\n");
 
-    spunk(LEADERBOARD, "");   
+    spunk(sock, LEADERBOARD, "");   
     char* response;
-    if ((response = eavesdrop())[0] == TERMINATOR)
+    if ((response = eavesdrop(sock))[0] == TERMINATOR)
         printf("There is no information currently stored in the leaderboard. Try again later.\n");
 
     while(response[0] != TERMINATOR)
@@ -277,7 +247,7 @@ void leaderboard()
         char *games_played = strtok(NULL, DELIM);
         
         printf("%s \t %s seconds \t %s games won, %s games played\n", name, seconds, games_won, games_played);
-        response = eavesdrop();
+        response = eavesdrop(sock);
     }            
 
     printf("==========================================================================\n");
