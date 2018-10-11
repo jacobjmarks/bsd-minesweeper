@@ -401,7 +401,7 @@ void play_game(ClientSession_t* session) {
     }
 }
 
-void view_leaderboard(int sock) {
+void stream_leaderboard(int sock) {
     HighScore_t* score = leaderboard;
 
     while (score != NULL) {
@@ -457,7 +457,7 @@ void serve_client(ClientSession_t* session) {
                 break;
             }
             case LEADERBOARD: {
-                view_leaderboard(session->sock);
+                stream_leaderboard(session->sock);
                 break;
             }
             case QUIT: {
