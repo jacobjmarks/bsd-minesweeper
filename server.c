@@ -203,20 +203,18 @@ HighScore_t* get_highscore(char* user) {
     return previous->next = score;
 }
 
-void serve_client(int tid, int sock) {
-    char this_user[32];
+int client_login(int sock, char* user) {
+    bool authenticated = false;
 
-    bool logged_in = false;
-
-    while (!logged_in) {
+    while (!authenticated) {
         char request[PACKET_SIZE];
         if (read(sock, request, PACKET_SIZE) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
-            return;
+            return 1;
         }
         int protocol = ctoi(request[0]);
 
-        if (protocol != LOGIN) continue;
+        if (protocol != LOGIN) return 0;
 
         printf("Serving {\n");
         printf("    Protocol: %d\n", protocol);
@@ -226,14 +224,14 @@ void serve_client(int tid, int sock) {
         char credentials[PACKET_SIZE];
         strncpy(credentials, request + 1, strlen(request));
 
-        char* user = strtok(credentials, ":");
-        char* pass = strtok(NULL, "\n");
+        char* input_user = strtok(credentials, ":");
+        char* input_pass = strtok(NULL, "\n");
 
-        if (user != NULL && pass != NULL) {
-            printf("Authenticating %s:%s...", user, pass);
-            if (logged_in = authenticate(user, pass)) {
+        if (input_user != NULL && input_pass != NULL) {
+            printf("Authenticating %s:%s...", input_user, input_pass);
+            if (authenticated = authenticate(input_user, input_pass)) {
                 printf("  Granted");
-                strcpy(this_user, user);
+                strcpy(user, input_user);
             } else {
                 printf("  Denied");
             }
@@ -242,12 +240,18 @@ void serve_client(int tid, int sock) {
         }
         
         char response[PACKET_SIZE] = {0};
-        strcat(response, logged_in ? "1" : "0");
+        strcat(response, authenticated ? "1" : "0");
         printf("Responding: %s\n", response);
         send(sock, &response, PACKET_SIZE, 0);
     }
+}
 
-    HighScore_t* score = get_highscore(this_user);
+void serve_client(int tid, int sock) {
+    char user[32];
+
+    if (client_login(sock, user) != 0) return;
+
+    HighScore_t* score = get_highscore(user);
 
     printf("T%d Listening...\n", tid);
 
@@ -401,7 +405,8 @@ void serve_client(int tid, int sock) {
                             break;
                         }
                         case QUIT: {
-                            return;
+                            game_over = true;
+                            break;
                         }
                         default: break;
                     }
