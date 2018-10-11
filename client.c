@@ -136,8 +136,7 @@ int game(int sock)
     memset(&gs, 0, sizeof(GameState_t));
 
     spunk(sock, PLAY, "");
-    gs.remaining_mines = 10;
-    // gs.remaining_mines = eavesdrop(sock);
+    gs.remaining_mines = atoi(eavesdrop(sock));
 
     int protocol, x_pos, y_pos;
     int gameover = 0;
