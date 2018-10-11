@@ -251,6 +251,13 @@ int client_login(int sock, char* user) {
     return strlen(user) ? 0 : 1;
 }
 
+void send_terminator(int sock) {
+    char message[PACKET_SIZE] = {0};
+    message[0] = TERMINATOR;
+    printf("Sending terminator\n");
+    send(sock, &message, PACKET_SIZE, 0);
+}
+
 void lose_game(GameState_t* gs, int sock) {
     // Stream all mine positions
     for (int y = 0; y < NUM_TILES_Y; y++) {
@@ -267,11 +274,6 @@ void lose_game(GameState_t* gs, int sock) {
             }
         }
     }
-
-    char terminate[PACKET_SIZE] = {0};
-    terminate[0] = 'T';
-    printf("Responding: %s\n", terminate);
-    send(sock, &terminate, PACKET_SIZE, 0);
 
     gs->game_over = true;
 }
@@ -293,10 +295,7 @@ void stream_tiles(GameState_t* gs, int sock) {
         }
     }
 
-    char terminate[PACKET_SIZE] = {0};
-    terminate[0] = 'T';
-    printf("Responding: %s\n", terminate);
-    send(sock, &terminate, PACKET_SIZE, 0);
+    send_terminator(sock);
 }
 
 void reveal_tile(int pos_x, int pos_y, GameState_t* gs, int sock) {
@@ -304,14 +303,7 @@ void reveal_tile(int pos_x, int pos_y, GameState_t* gs, int sock) {
 
     Tile_t* tile = &gs->tiles[pos_x][pos_y];
 
-    if (tile->revealed) {
-        char response[PACKET_SIZE] = {0};
-        response[0] = 'T';
-        printf("Responding: %s\n", response);
-        send(sock, &response, PACKET_SIZE, 0);
-        return;
-    }
-
+    if (tile->revealed) return send_terminator(sock);
     if (tile->is_mine) return lose_game(gs, sock);
 
     reveal_and_traverse(pos_x, pos_y, gs);
@@ -324,13 +316,7 @@ void flag_tile(int pos_x, int pos_y, GameState_t* gs, HighScore_t* score, int so
 
     Tile_t* tile = &gs->tiles[pos_x][pos_y];
 
-    if (!tile->is_mine) {
-        char response[PACKET_SIZE] = {0};
-        response[0] = 'T';
-        printf("Responding: %s\n", response);
-        send(sock, &response, PACKET_SIZE, 0);
-        return;
-    }
+    if (!tile->is_mine) return send_terminator(sock);
 
     // Flag and return remaining number of mines...
 
@@ -442,10 +428,7 @@ void serve_client(int tid, int sock) {
                     score = score->next;
                 }
 
-                char terminate[PACKET_SIZE] = {0};
-                terminate[0] = 'T';
-                printf("Responding: %s\n", terminate);
-                send(sock, &terminate, PACKET_SIZE, 0);
+                send_terminator(sock);
 
                 break;
             }
