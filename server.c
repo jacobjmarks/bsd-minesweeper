@@ -12,6 +12,8 @@
 #define ctoi(char)(char - '0')
 #define itoc(int)(int + '0')
 
+#define NUM_THREADS 4
+
 #define NUM_MINES 10
 
 typedef struct Tile {
@@ -25,11 +27,6 @@ typedef struct GameState {
     Tile_t tiles[NUM_TILES_X][NUM_TILES_Y];
 } GameState_t;
 
-typedef struct ThreadData {
-    char user[32];
-    int sock;
-} ThreadData_t;
-
 typedef struct HighScore {
     char user[32];
     int best_time;
@@ -37,6 +34,16 @@ typedef struct HighScore {
     int games_played;
     struct HighScore* next;
 } HighScore_t;
+
+typedef struct ClientQueue {
+    int sock;
+    struct ClientQueue* next;
+} ClientQueue_t;
+
+ClientQueue_t* clients;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t new_client = PTHREAD_COND_INITIALIZER;
 
 HighScore_t* leaderboard;
 
@@ -142,11 +149,32 @@ void reveal_and_traverse(int x, int y, GameState_t* gs) {
     }
 }
 
+bool authenticate(char* user, char* pass) {
+    bool authenticated = false;
+
+    FILE* auth_file = fopen("authentication.tsv", "r");
+
+    char line[255];
+    fgets(line, sizeof(line), auth_file); // Skip first line
+    while (fgets(line, sizeof(line), auth_file) != NULL) {
+        bool user_match = strcmp(user, strtok(line, "\t")) == 0;
+        bool pass_match = strcmp(pass, strtok(NULL, "\n")) == 0;
+        if (user_match && pass_match) {
+            authenticated = true;
+            break;
+        }
+    }
+    fclose(auth_file);
+
+    return authenticated;
+}
+
 HighScore_t* get_highscore(char* user) {
     printf("Getting highscore for user: %s\n", user);
     if (!leaderboard) {
         printf("  Creating new leaderboard\n");
-        leaderboard = malloc(sizeof(HighScore_t));
+        leaderboard = calloc(1, sizeof(HighScore_t));
+        memset(leaderboard, 0, sizeof(HighScore_t));
         strcpy(leaderboard->user, user);
         leaderboard->best_time = 999;
         printf("    User: %s\n", leaderboard->user);
@@ -167,7 +195,8 @@ HighScore_t* get_highscore(char* user) {
     }
 
     printf("  Creating new entry\n");
-    score = malloc(sizeof(HighScore_t));
+    score = calloc(1, sizeof(HighScore_t));
+    memset(score, 0, sizeof(HighScore_t));
     strcpy(score->user, user);
     score->best_time = 999;
     printf("    User: %s\n", score->user);
@@ -175,44 +204,83 @@ HighScore_t* get_highscore(char* user) {
     return previous->next = score;
 }
 
-void* client_thread(void* data) {
-    int tid = pthread_self();
+void serve_client(int tid, int sock) {
+    char this_user[32];
 
-    ThreadData_t td = *(ThreadData_t*)data;
+    bool logged_in = false;
 
-    HighScore_t* score = get_highscore(td.user);
+    while (!logged_in) {
+        char request[PACKET_SIZE];
+        if (read(sock, request, PACKET_SIZE) <= 0) {
+            printf("Closing connection: Error connecting to client.\n");
+            return;
+        }
+        int protocol = ctoi(request[0]);
 
-    printf("T%x: Listening...\n", tid);
+        if (protocol != LOGIN) continue;
+
+        printf("Serving {\n");
+        printf("    Protocol: %d\n", protocol);
+        printf("    Message:  %s\n", request + 1);
+        printf("}\n");
+
+        char credentials[PACKET_SIZE];
+        strncpy(credentials, request + 1, strlen(request));
+
+        char* user = strtok(credentials, ":");
+        char* pass = strtok(NULL, "\n");
+
+        if (user != NULL && pass != NULL) {
+            printf("Authenticating %s:%s...", user, pass);
+            if (logged_in = authenticate(user, pass)) {
+                printf("  Granted");
+                strcpy(this_user, user);
+            } else {
+                printf("  Denied");
+            }
+        } else {
+            printf("Error parsing credentials.\n");
+        }
+        
+        char response[PACKET_SIZE] = {0};
+        strcat(response, logged_in ? "1" : "0");
+        printf("Responding: %s\n", response);
+        send(sock, &response, PACKET_SIZE, 0);
+    }
+
+    HighScore_t* score = get_highscore(this_user);
+
+    printf("T%d Listening...\n", tid);
 
     int menu_selection;
 
     do {
         char request[PACKET_SIZE];
-        if (read(td.sock, request, PACKET_SIZE) <= 0) {
-            printf("T%x exiting: Error connecting to client.\n", tid);
+        if (read(sock, request, PACKET_SIZE) <= 0) {
+            printf("T%d exiting: Error connecting to client.\n", tid);
             break;
         }
         menu_selection = ctoi(request[0]);
 
         switch(menu_selection) {
             case PLAY: {
-                printf("T%x starts playing...\n", tid);
+                printf("T%d starts playing...\n", tid);
                 GameState_t* gs = create_gamestate();
                 score->games_played++;
                 time_t start_time = time(NULL);
 
-                bool gameOver = false;
+                bool game_over = false;
 
-                while (!gameOver) {
+                while (!game_over) {
                     char request[PACKET_SIZE];
-                    if (read(td.sock, request, PACKET_SIZE) <= 0) {
-                        printf("T%x exiting: Error connecting to client.\n", tid);
+                    if (read(sock, request, PACKET_SIZE) <= 0) {
+                        printf("T%d exiting: Error connecting to client.\n", tid);
                         free(gs);
                         break;
                     }
                     int protocol = ctoi(request[0]);
 
-                    printf("T%x serving {\n", tid);
+                    printf("T%d serving {\n", tid);
                     printf("    Protocol: %d\n", protocol);
                     printf("    Message:  %s\n", request + 1);
                     printf("}\n");
@@ -230,7 +298,7 @@ void* client_thread(void* data) {
                                 char response[PACKET_SIZE] = {0};
                                 response[0] = 'T';
                                 printf("Responding: %s\n", response);
-                                send(td.sock, &response, PACKET_SIZE, 0);
+                                send(sock, &response, PACKET_SIZE, 0);
                                 break;
                             }
 
@@ -244,7 +312,7 @@ void* client_thread(void* data) {
                                             response[1] = itoc(y);
                                             response[2] = '*';
                                             printf("Responding: %s\n", response);
-                                            send(td.sock, &response, PACKET_SIZE, 0);
+                                            send(sock, &response, PACKET_SIZE, 0);
                                             tile->sent = true;
                                         }
                                     }
@@ -253,9 +321,9 @@ void* client_thread(void* data) {
                                 char terminate[PACKET_SIZE] = {0};
                                 terminate[0] = 'T';
                                 printf("Responding: %s\n", terminate);
-                                send(td.sock, &terminate, PACKET_SIZE, 0);
+                                send(sock, &terminate, PACKET_SIZE, 0);
 
-                                gameOver = true;
+                                game_over = true;
 
                                 break;
                             }
@@ -272,7 +340,7 @@ void* client_thread(void* data) {
                                         response[1] = itoc(y);
                                         response[2] = itoc(tile->adjacent_mines);
                                         printf("Responding: %s\n", response);
-                                        send(td.sock, &response, PACKET_SIZE, 0);
+                                        send(sock, &response, PACKET_SIZE, 0);
                                         tile->sent = true;
                                     }
                                 }
@@ -281,7 +349,7 @@ void* client_thread(void* data) {
                             char terminate[PACKET_SIZE] = {0};
                             terminate[0] = 'T';
                             printf("Responding: %s\n", terminate);
-                            send(td.sock, &terminate, PACKET_SIZE, 0);
+                            send(sock, &terminate, PACKET_SIZE, 0);
 
                             break;
                         }
@@ -297,7 +365,7 @@ void* client_thread(void* data) {
                                 char response[PACKET_SIZE] = {0};
                                 response[0] = 'T';
                                 printf("Responding: %s\n", response);
-                                send(td.sock, &response, PACKET_SIZE, 0);
+                                send(sock, &response, PACKET_SIZE, 0);
                                 break;
                             }
 
@@ -320,10 +388,10 @@ void* client_thread(void* data) {
                             char response[PACKET_SIZE] = {0};
                             response[0] = itoc(mines_remaining);
                             printf("Responding: %s\n", response);
-                            send(td.sock, &response, PACKET_SIZE, 0);
+                            send(sock, &response, PACKET_SIZE, 0);
                             
                             if (!mines_remaining) {
-                                gameOver = true;
+                                game_over = true;
                                 score->games_won++;
                                 time_t elapsed = time(NULL) - start_time;
                                 if (elapsed < score->best_time) {
@@ -333,12 +401,17 @@ void* client_thread(void* data) {
 
                             break;
                         }
+                        case QUIT: {
+                            return;
+                        }
                         default: break;
                     }
                 }
+                break;
             }
             case LEADERBOARD: {
                 HighScore_t* score = leaderboard;
+
                 while (score != NULL) {
                     char response[PACKET_SIZE] = {0};
                     sprintf(response, "%s,%d,%d,%d",
@@ -349,39 +422,68 @@ void* client_thread(void* data) {
                     );
 
                     printf("Responding: %s\n", response);
-                    send(td.sock, &response, PACKET_SIZE, 0);
+                    send(sock, &response, PACKET_SIZE, 0);
                     score = score->next;
                 }
+
                 char terminate[PACKET_SIZE] = {0};
                 terminate[0] = 'T';
                 printf("Responding: %s\n", terminate);
-                send(td.sock, &terminate, PACKET_SIZE, 0);
+                send(sock, &terminate, PACKET_SIZE, 0);
+
+                break;
+            }
+            case QUIT: {
+                return;
             }
             default: break;
         }
     } while (true);
-
-    return NULL;
 }
 
-bool authenticate(char* user, char* pass) {
-    bool authenticated = false;
+int get_client() {
+    if (clients) {
+        ClientQueue_t* client = clients;
+        clients = clients->next;
+        int sock = client->sock;
+        free(client);
+        return sock;
+    }
 
-    FILE* auth_file = fopen("authentication.tsv", "r");
+    return 0;
+}
 
-    char line[255];
-    fgets(line, sizeof(line), auth_file); // Skip first line
-    while (fgets(line, sizeof(line), auth_file) != NULL) {
-        bool user_match = strcmp(user, strtok(line, "\t")) == 0;
-        bool pass_match = strcmp(pass, strtok(NULL, "\n")) == 0;
-        if (user_match && pass_match) {
-            authenticated = true;
-            break;
+void* handle_client_queue(void* data) {
+    int tid = *(int*)data;
+    printf("TID: %d\n", tid);
+
+    pthread_mutex_lock(&mutex);
+
+    while(true) {
+        if (clients) {
+            int client_sock = get_client();
+            pthread_mutex_unlock(&mutex);
+            serve_client(tid, client_sock);
+            pthread_mutex_lock(&mutex);
+        } else {
+            pthread_cond_wait(&new_client, &mutex);
         }
     }
-    fclose(auth_file);
+}
 
-    return authenticated;
+void queue_client(int sock) {
+    if (!clients) {
+        clients = calloc(1, sizeof(ClientQueue_t));
+        clients->sock = sock;
+    } else {
+        ClientQueue_t* client = clients;
+        while (client->next) {
+            client = client->next;
+        }
+        client->next = calloc(1, sizeof(ClientQueue_t));
+        client->next->sock = sock;
+    }
+    pthread_cond_signal(&new_client);
 }
 
 int main(int argc, char* argv[]) {
@@ -395,74 +497,24 @@ int main(int argc, char* argv[]) {
     int port = atoi(argv[1]);
     int server_fd = init_server(port);
 
-    bool create_new_client = true;
+    int tids[NUM_THREADS];
+    pthread_t pthreads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        tids[i] = i;
+        pthread_create(&pthreads[i], NULL, handle_client_queue, &tids[i]);
+    }
+
     int sock;
 
     while (true) {
-        if (create_new_client) {
-            printf("Waiting for socket connection...\n");
-            if ((sock = accept(server_fd, NULL, NULL)) < 0) {
-                perror("accept");
-                exit(EXIT_FAILURE);
-            }
-            printf("New client listening...\n");
-        }
-        create_new_client = false;
-
-        char request[PACKET_SIZE];
-        if (read(sock, request, PACKET_SIZE) <= 0) {
-            printf("Closing connection: Error connecting to client.\n");
-            create_new_client = true;
-            continue;
-        }
-        int protocol = ctoi(request[0]);
-
-        printf("Serving {\n");
-        printf("    Protocol: %d\n", protocol);
-        printf("    Message:  %s\n", request + 1);
-        printf("}\n");
-        
-        switch (protocol) {
-            case LOGIN:;
-                char credentials[PACKET_SIZE];
-                strncpy(credentials, request + 1, strlen(request));
-
-                char* user = strtok(credentials, ":");
-                char* pass = strtok(NULL, "\n");
-
-                if (user == NULL || pass == NULL) {
-                    printf("Error parsing credentials.\n");
-                    char response[PACKET_SIZE] = {0};
-                    strcat(response, "0");
-                    printf("Responding: %s\n", response);
-                    send(sock, &response, PACKET_SIZE, 0);
-                    break;
-                }
-
-                printf("Authenticating %s:%s...", user, pass);
-                bool authenticated = authenticate(user, pass);
-
-                if (authenticated) {
-                    printf("Granted\n");
-                    printf("Creating new client thread...");
-                    ThreadData_t data;
-                    strcpy(data.user, user);
-                    data.sock = sock;
-                    pthread_t pid;
-                    pthread_create(&pid, NULL, client_thread, &data);
-                    printf("Done (%x)\n", (int)pid);
-                    create_new_client = true;
-                } else {
-                    printf("Denied\n");
-                }
-
-                char response[PACKET_SIZE] = {0};
-                strcat(response, authenticated ? "1" : "0");
-                printf("Responding: %s\n", response);
-                send(sock, &response, PACKET_SIZE, 0);
-                break;
-            default:;
-                break;
+        printf("Waiting for socket connection...\n");
+        if ((sock = accept(server_fd, NULL, NULL)) < 0) {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        } else {
+            printf("Adding client to queue\n");
+            queue_client(sock);
         }
     }
 
