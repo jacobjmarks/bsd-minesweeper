@@ -57,6 +57,10 @@ pthread_cond_t is_new_client = PTHREAD_COND_INITIALIZER;
 
 HighScore_t* leaderboard;
 
+/**
+ * Prints the current state of the given Tile matrix.
+ * Debugging purposes only.
+ */
 void print_tile_state(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     printf("[adjacent_mines revealed is_mine]\n");
     for (int y = 0; y < NUM_TILES_Y; y++) {
@@ -68,6 +72,9 @@ void print_tile_state(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
+/**
+ * Place a set amount of mines at random locations within the given Tile matrix.
+ */
 void place_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     for (int i = 0; i < NUM_MINES; i++) {
         int x_pos, y_pos;
@@ -83,6 +90,9 @@ void place_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
+/**
+ * Sets the adjacent mine count for all Tiles in the given matrix.
+ */
 void set_adjacent_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     for (int y = 0; y < NUM_TILES_Y; y++) {
         for (int x = 0; x < NUM_TILES_X; x++) {
@@ -100,6 +110,11 @@ void set_adjacent_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
     }
 }
 
+/**
+ * Initialises a BSD socker server using the given port.
+ * 
+ * Returns the created server file descriptor.
+ */
 int init_server(int port) {
     int server_fd;
     struct sockaddr_in address;
@@ -126,6 +141,11 @@ int init_server(int port) {
     return server_fd;
 }
 
+/**
+ * Initialise a new GameState.
+ * 
+ * Returns a pointer to the created struct.
+ */
 GameState_t* create_gamestate() {
     GameState_t* gs = malloc(sizeof(GameState_t));
     memset(gs, 0, sizeof(GameState_t));
@@ -136,6 +156,11 @@ GameState_t* create_gamestate() {
     return gs;
 }
 
+/**
+ * Reveals the Tile at the given location within the Tile matrix of the provided
+ * Gamestate. Recursively continues the process if necessary, based on the
+ * rules of Minesweeper.
+ */
 void reveal_and_traverse(int x, int y, GameState_t* gs) {
     printf("RAT %d %d\n", x, y);
     Tile_t* self = &gs->tiles[x][y];
@@ -161,6 +186,12 @@ void reveal_and_traverse(int x, int y, GameState_t* gs) {
     }
 }
 
+/**
+ * Authenticates a given user and password against the defined credentials
+ * within the external authentication tsv file.
+ * 
+ * Returns true if the user and password is successfully found.
+ */
 bool authenticate(char* user, char* pass) {
     bool authenticated = false;
 
@@ -181,6 +212,11 @@ bool authenticate(char* user, char* pass) {
     return authenticated;
 }
 
+/**
+ * Finds the existing or creates a new HighScore for the given user.
+ * 
+ * Returns a pointer the struct.
+ */
 HighScore_t* get_highscore(char* user) {
     // Create new leaderboard if none exists
     if (!leaderboard) {
@@ -209,6 +245,12 @@ HighScore_t* get_highscore(char* user) {
     return previous->next = score;
 }
 
+/**
+ * Attempts to authenticate an incoming client. If successful, the logged in
+ * user is stored in the provided pointer.
+ * 
+ * Returns 1 if there was an issue completing the process, 0 otherwise.
+ */
 int client_login(int sock, char* user) {
     bool authenticated = false;
 
@@ -254,6 +296,10 @@ int client_login(int sock, char* user) {
     return strlen(user) ? 0 : 1;
 }
 
+/**
+ * Sends a terminator signal to the given socket. Primarily used to indicate the
+ * end of a stream of data.
+ */
 void send_terminator(int sock) {
     char message[PACKET_SIZE] = {0};
     message[0] = TERMINATOR;
@@ -261,6 +307,11 @@ void send_terminator(int sock) {
     send(sock, &message, PACKET_SIZE, 0);
 }
 
+/**
+ * Completes the neccessary actions when losing a game of Minesweeper. Including
+ * streaming all mine positions and setting the gameover state of the given
+ * ClientSession.
+ */
 void lose_game(ClientSession_t* session) {
     // Stream all mine positions
     for (int y = 0; y < NUM_TILES_Y; y++) {
@@ -283,6 +334,10 @@ void lose_game(ClientSession_t* session) {
     session->gamestate->game_over = true;
 }
 
+/**
+ * Streams all revealed Tiles that have not already been sent within the
+ * GameState Tile matrix of the provided ClientSession.
+ */
 void stream_tiles(ClientSession_t* session) {
     // Stream all revealed and unsent tiles
     for (int y = 0; y < NUM_TILES_Y; y++) {
@@ -303,6 +358,10 @@ void stream_tiles(ClientSession_t* session) {
     send_terminator(session->sock);
 }
 
+/**
+ * Reveals a Tile at the given position within the GameState Tile matrix of the
+ * provided ClientSession. The client will lose the game is the Tile is a mine.
+ */
 void reveal_tile(int pos_x, int pos_y, ClientSession_t* session) {
     printf("Revealing tile %d:%d...\n", pos_x, pos_y);
 
@@ -315,7 +374,11 @@ void reveal_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     stream_tiles(session);
 }
-
+/**
+ * Flags a Tile at the given position within the GameState Tile matrix of the
+ * provided ClientSession. The client will win the game once all mines have been
+ * flagged.
+ */
 void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
     printf("Flagging tile %d:%d...\n", pos_x, pos_y);
 
@@ -342,6 +405,9 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
     }
 }
 
+/**
+ * Plays a new game of Minesweeper for the given ClientSession.
+ */
 void play_game(ClientSession_t* session) {
     printf("T%d starts playing...\n", session->tid);
     session->gamestate = create_gamestate();
@@ -383,6 +449,9 @@ void play_game(ClientSession_t* session) {
     }
 }
 
+/**
+ * Streams all leaderboard entries to the provided socket.
+ */
 void stream_leaderboard(int sock) {
     HighScore_t* score = leaderboard;
 
@@ -403,6 +472,11 @@ void stream_leaderboard(int sock) {
     send_terminator(sock);
 }
 
+/**
+ * Initialises a new ClientSession with the given thread ID and socket.
+ * 
+ * Returns a pointer to the created struct.
+ */
 ClientSession_t* create_client_session(int tid, int sock) {
     char user[32];
 
@@ -417,6 +491,9 @@ ClientSession_t* create_client_session(int tid, int sock) {
     return session;
 }
 
+/**
+ * Serves the new client specified in the given ClientSession.
+ */
 void serve_client(ClientSession_t* session) {
     printf("T%d Listening...\n", session->tid);
 
@@ -443,6 +520,11 @@ void serve_client(ClientSession_t* session) {
     }
 }
 
+/**
+ * Retreives the next client in the waiting queue in a FIFO manor.
+ * 
+ * Returns the socket of the client, or 0 if no clients are in the queue.
+ */
 int get_client() {
     if (client_queue) {
         ClientQueue_t* client = client_queue;
@@ -464,6 +546,10 @@ int get_client() {
     return 0;
 }
 
+/**
+ * Thread function to listen to the client waiting queue, serving queued clients
+ * where available.
+ */
 void* handle_client_queue(void* data) {
     int tid = *(int*)data;
     printf("TID: %d\n", tid);
@@ -487,6 +573,10 @@ void* handle_client_queue(void* data) {
     }
 }
 
+/**
+ * Adds a new entry in the ClientQueue with the given socket. If all threads are
+ * busy, the client will be marked as waiting.
+ */
 void queue_client(int sock) {
     ClientQueue_t* new_client;
 
