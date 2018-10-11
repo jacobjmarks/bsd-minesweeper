@@ -1,5 +1,0 @@
-cmake_minimum_required(VERSION 3.5.1)
-project (minesweeper)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
-add_executable(client.o client.c comm.c)
-add_executable(server.o server.c comm.c)
