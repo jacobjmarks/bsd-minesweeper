@@ -36,6 +36,14 @@ typedef struct HighScore {
     struct HighScore* next;
 } HighScore_t;
 
+typedef struct ClientSession {
+    int tid;
+    int sock;
+    char user[32];
+    HighScore_t* score;
+    GameState_t* gamestate;
+} ClientSession_t;
+
 typedef struct ClientQueue {
     int sock;
     struct ClientQueue* next;
@@ -258,67 +266,67 @@ void send_terminator(int sock) {
     send(sock, &message, PACKET_SIZE, 0);
 }
 
-void lose_game(GameState_t* gs, int sock) {
+void lose_game(ClientSession_t* session) {
     // Stream all mine positions
     for (int y = 0; y < NUM_TILES_Y; y++) {
         for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile_t* tile = &gs->tiles[x][y];
+            Tile_t* tile = &session->gamestate->tiles[x][y];
             if (tile->is_mine) {
                 char response[PACKET_SIZE] = {0};
                 response[0] = itoc(x);
                 response[1] = itoc(y);
                 response[2] = '*';
                 printf("Responding: %s\n", response);
-                send(sock, &response, PACKET_SIZE, 0);
+                send(session->sock, &response, PACKET_SIZE, 0);
                 tile->sent = true;
             }
         }
     }
 
-    send_terminator(sock);
+    send_terminator(session->sock);
 
-    gs->game_over = true;
+    session->gamestate->game_over = true;
 }
 
-void stream_tiles(GameState_t* gs, int sock) {
+void stream_tiles(ClientSession_t* session) {
     // Stream all revealed and unsent tiles
     for (int y = 0; y < NUM_TILES_Y; y++) {
         for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile_t* tile = &gs->tiles[x][y];
+            Tile_t* tile = &session->gamestate->tiles[x][y];
             if (!tile->is_mine && tile->revealed && !tile->sent) {
                 char response[PACKET_SIZE] = {0};
                 response[0] = itoc(x);
                 response[1] = itoc(y);
                 response[2] = itoc(tile->adjacent_mines);
                 printf("Responding: %s\n", response);
-                send(sock, &response, PACKET_SIZE, 0);
+                send(session->sock, &response, PACKET_SIZE, 0);
                 tile->sent = true;
             }
         }
     }
 
-    send_terminator(sock);
+    send_terminator(session->sock);
 }
 
-void reveal_tile(int pos_x, int pos_y, GameState_t* gs, int sock) {
+void reveal_tile(int pos_x, int pos_y, ClientSession_t* session) {
     printf("Revealing tile %d:%d...\n", pos_x, pos_y);
 
-    Tile_t* tile = &gs->tiles[pos_x][pos_y];
+    Tile_t* tile = &session->gamestate->tiles[pos_x][pos_y];
 
-    if (tile->revealed) return send_terminator(sock);
-    if (tile->is_mine) return lose_game(gs, sock);
+    if (tile->revealed) return send_terminator(session->sock);
+    if (tile->is_mine) return lose_game(session);
 
-    reveal_and_traverse(pos_x, pos_y, gs);
+    reveal_and_traverse(pos_x, pos_y, session->gamestate);
 
-    stream_tiles(gs, sock);
+    stream_tiles(session);
 }
 
-void flag_tile(int pos_x, int pos_y, GameState_t* gs, HighScore_t* score, int sock) {
+void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
     printf("Flagging tile %d:%d...\n", pos_x, pos_y);
 
-    Tile_t* tile = &gs->tiles[pos_x][pos_y];
+    Tile_t* tile = &session->gamestate->tiles[pos_x][pos_y];
 
-    if (!tile->is_mine) return send_terminator(sock);
+    if (!tile->is_mine) return send_terminator(session->sock);
 
     // Flag and return remaining number of mines...
 
@@ -329,7 +337,7 @@ void flag_tile(int pos_x, int pos_y, GameState_t* gs, HighScore_t* score, int so
 
     for (int y = 0; y < NUM_TILES_Y; y++) {
         for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile_t* tile = &gs->tiles[x][y];
+            Tile_t* tile = &session->gamestate->tiles[x][y];
             if (tile->is_mine && !tile->revealed) {
                 mines_remaining++;
             }
@@ -339,53 +347,53 @@ void flag_tile(int pos_x, int pos_y, GameState_t* gs, HighScore_t* score, int so
     char response[PACKET_SIZE] = {0};
     response[0] = itoc(mines_remaining);
     printf("Responding: %s\n", response);
-    send(sock, &response, PACKET_SIZE, 0);
+    send(session->sock, &response, PACKET_SIZE, 0);
     
     if (!mines_remaining) {
-        gs->game_over = true;
-        score->games_won++;
-        time_t elapsed = time(NULL) - gs->start_time;
-        if (elapsed < score->best_time) {
-            score->best_time = elapsed;
+        session->gamestate->game_over = true;
+        session->score->games_won++;
+        time_t elapsed = time(NULL) - session->gamestate->start_time;
+        if (elapsed < session->score->best_time) {
+            session->score->best_time = elapsed;
         }
     }
 }
 
-void play_game(HighScore_t* score, int sock) {
-    // printf("T%d starts playing...\n", tid);
-    GameState_t* gs = create_gamestate();
-    gs->start_time = time(NULL);
-    score->games_played++;
+void play_game(ClientSession_t* session) {
+    printf("T%d starts playing...\n", session->tid);
+    session->gamestate = create_gamestate();
+    session->gamestate->start_time = time(NULL);
+    session->score->games_played++;
 
-    while (!gs->game_over) {
+    while (!session->gamestate->game_over) {
         char request[PACKET_SIZE];
-        if (read(sock, request, PACKET_SIZE) <= 0) {
-            // printf("T%d exiting: Error connecting to client.\n", tid);
-            free(gs);
+        if (read(session->sock, request, PACKET_SIZE) <= 0) {
+            printf("T%d exiting: Error connecting to client.\n", session->tid);
+            free(session->gamestate);
             break;
         }
         int protocol = ctoi(request[0]);
 
-        // printf("T%d serving {\n", tid);
-        // printf("    Protocol: %d\n", protocol);
-        // printf("    Message:  %s\n", request + 1);
-        // printf("}\n");
+        printf("T%d serving {\n", session->tid);
+        printf("    Protocol: %d\n", protocol);
+        printf("    Message:  %s\n", request + 1);
+        printf("}\n");
 
         switch (protocol) {
             case REVEAL_TILE: {
                 int pos_x = ctoi(request[1]);
                 int pos_y = ctoi(request[2]);
-                reveal_tile(pos_x, pos_y, gs, sock);
+                reveal_tile(pos_x, pos_y, session);
                 break;
             }
             case FLAG_TILE: {
                 int pos_x = ctoi(request[1]);
                 int pos_y = ctoi(request[2]);
-                flag_tile(pos_x, pos_y, gs, score, sock);
+                flag_tile(pos_x, pos_y, session);
                 break;
             }
             case QUIT: {
-                gs->game_over = true;
+                session->gamestate->game_over = true;
                 break;
             }
             default: break;
@@ -413,32 +421,43 @@ void view_leaderboard(int sock) {
     send_terminator(sock);
 }
 
-void serve_client(int tid, int sock) {
-    char user[32];
+ClientSession_t* create_client_session(int tid, int sock) {
+    ClientSession_t* session = calloc(1, sizeof(ClientSession_t));
 
-    if (client_login(sock, user) != 0) return;
+    if (client_login(sock, session->user) != 0) {
+        free(session);
+        return NULL;
+    }
 
-    HighScore_t* score = get_highscore(user);
+    session->tid = tid;
+    session->sock = sock;
+    session->score = get_highscore(session->user);
 
-    printf("T%d Listening...\n", tid);
+    return session;
+}
+
+void serve_client(ClientSession_t* session) {
+    if (!session) return;
+
+    printf("T%d Listening...\n", session->tid);
 
     int menu_selection;
 
     do {
         char request[PACKET_SIZE];
-        if (read(sock, request, PACKET_SIZE) <= 0) {
-            printf("T%d exiting: Error connecting to client.\n", tid);
+        if (read(session->sock, request, PACKET_SIZE) <= 0) {
+            printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
         }
         menu_selection = ctoi(request[0]);
 
         switch(menu_selection) {
             case PLAY: {
-                play_game(score, sock);
+                play_game(session);
                 break;
             }
             case LEADERBOARD: {
-                view_leaderboard(sock);
+                view_leaderboard(session->sock);
                 break;
             }
             case QUIT: {
@@ -469,9 +488,9 @@ void* handle_client_queue(void* data) {
 
     while(true) {
         if (clients) {
-            int client_sock = get_client();
+            int sock = get_client();
             pthread_mutex_unlock(&mutex);
-            serve_client(tid, client_sock);
+            serve_client(create_client_session(tid, sock));
             pthread_mutex_lock(&mutex);
         } else {
             pthread_cond_wait(&new_client, &mutex);
