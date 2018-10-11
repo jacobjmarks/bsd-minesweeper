@@ -12,6 +12,8 @@
 #define ctoi(char)(char - '0')
 #define itoc(int)(int + '0')
 
+#define NUM_THREADS 4
+
 #define NUM_MINES 10
 
 typedef struct Tile {
@@ -32,6 +34,16 @@ typedef struct HighScore {
     int games_played;
     struct HighScore* next;
 } HighScore_t;
+
+typedef struct ClientQueue {
+    int sock;
+    struct ClientQueue* next;
+} ClientQueue_t;
+
+ClientQueue_t* clients;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t new_client = PTHREAD_COND_INITIALIZER;
 
 HighScore_t* leaderboard;
 
@@ -192,10 +204,7 @@ HighScore_t* get_highscore(char* user) {
     return previous->next = score;
 }
 
-void* client_thread(void* data) {
-    int tid = pthread_self();
-    int sock = *(int*)data;
-
+void serve_client(int tid, int sock) {
     char this_user[32];
 
     bool logged_in = false;
@@ -204,7 +213,7 @@ void* client_thread(void* data) {
         char request[PACKET_SIZE];
         if (read(sock, request, PACKET_SIZE) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
-            return NULL;
+            return;
         }
         int protocol = ctoi(request[0]);
 
@@ -241,21 +250,21 @@ void* client_thread(void* data) {
 
     HighScore_t* score = get_highscore(this_user);
 
-    printf("T%x: Listening...\n", tid);
+    printf("T%d Listening...\n", tid);
 
     int menu_selection;
 
     do {
         char request[PACKET_SIZE];
         if (read(sock, request, PACKET_SIZE) <= 0) {
-            printf("T%x exiting: Error connecting to client.\n", tid);
+            printf("T%d exiting: Error connecting to client.\n", tid);
             break;
         }
         menu_selection = ctoi(request[0]);
 
         switch(menu_selection) {
             case PLAY: {
-                printf("T%x starts playing...\n", tid);
+                printf("T%d starts playing...\n", tid);
                 GameState_t* gs = create_gamestate();
                 score->games_played++;
                 time_t start_time = time(NULL);
@@ -265,13 +274,13 @@ void* client_thread(void* data) {
                 while (!game_over) {
                     char request[PACKET_SIZE];
                     if (read(sock, request, PACKET_SIZE) <= 0) {
-                        printf("T%x exiting: Error connecting to client.\n", tid);
+                        printf("T%d exiting: Error connecting to client.\n", tid);
                         free(gs);
                         break;
                     }
                     int protocol = ctoi(request[0]);
 
-                    printf("T%x serving {\n", tid);
+                    printf("T%d serving {\n", tid);
                     printf("    Protocol: %d\n", protocol);
                     printf("    Message:  %s\n", request + 1);
                     printf("}\n");
@@ -393,8 +402,7 @@ void* client_thread(void* data) {
                             break;
                         }
                         case QUIT: {
-                            return NULL;
-                            break;
+                            return;
                         }
                         default: break;
                     }
@@ -426,13 +434,56 @@ void* client_thread(void* data) {
                 break;
             }
             case QUIT: {
-                return NULL;
+                return;
             }
             default: break;
         }
     } while (true);
+}
 
-    return NULL;
+int get_client() {
+    if (clients) {
+        ClientQueue_t* client = clients;
+        clients = clients->next;
+        int sock = client->sock;
+        free(client);
+        return sock;
+    }
+
+    return 0;
+}
+
+void* handle_client_queue(void* data) {
+    int tid = *(int*)data;
+    printf("TID: %d\n", tid);
+
+    pthread_mutex_lock(&mutex);
+
+    while(true) {
+        if (clients) {
+            int client_sock = get_client();
+            pthread_mutex_unlock(&mutex);
+            serve_client(tid, client_sock);
+            pthread_mutex_lock(&mutex);
+        } else {
+            pthread_cond_wait(&new_client, &mutex);
+        }
+    }
+}
+
+void queue_client(int sock) {
+    if (!clients) {
+        clients = calloc(1, sizeof(ClientQueue_t));
+        clients->sock = sock;
+    } else {
+        ClientQueue_t* client = clients;
+        while (client->next) {
+            client = client->next;
+        }
+        client->next = calloc(1, sizeof(ClientQueue_t));
+        client->next->sock = sock;
+    }
+    pthread_cond_signal(&new_client);
 }
 
 int main(int argc, char* argv[]) {
@@ -446,7 +497,14 @@ int main(int argc, char* argv[]) {
     int port = atoi(argv[1]);
     int server_fd = init_server(port);
 
-    bool create_new_client = true;
+    int tids[NUM_THREADS];
+    pthread_t pthreads[NUM_THREADS];
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        tids[i] = i;
+        pthread_create(&pthreads[i], NULL, handle_client_queue, &tids[i]);
+    }
+
     int sock;
 
     while (true) {
@@ -455,9 +513,8 @@ int main(int argc, char* argv[]) {
             perror("accept");
             exit(EXIT_FAILURE);
         } else {
-            pthread_t pid;
-            pthread_create(&pid, NULL, client_thread, &sock);
-            printf("New client listening...\n");
+            printf("Adding client to queue\n");
+            queue_client(sock);
         }
     }
 
