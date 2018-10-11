@@ -4,16 +4,8 @@
 #define NUM_TILES_X 9
 #define NUM_TILES_Y 9
 
-// GUI icons
-#define MINE '*'
-#define FLAG '+'
-
-// Responses
-#define TERMINATOR 'T'
-
-#define DELIM ","
-
 #define PACKET_SIZE 100
+#define TERMINATOR 'T'
 
 enum { PLAY=1, LEADERBOARD, QUIT, LOGIN, LOSE, WIN, REVEAL_TILE, FLAG_TILE};
 

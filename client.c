@@ -3,6 +3,11 @@
 
 #include <ctype.h>
 
+#define MINE '*'
+#define FLAG '+'
+
+#define DELIM ","
+
 typedef struct GameState {
     char field[NUM_TILES_X][NUM_TILES_Y];
     int remaining_mines;
