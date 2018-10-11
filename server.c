@@ -45,13 +45,15 @@ typedef struct ClientSession {
 
 typedef struct ClientQueue {
     int sock;
+    bool waiting;
     struct ClientQueue* next;
 } ClientQueue_t;
 
-ClientQueue_t* clients;
+ClientQueue_t* client_queue;
+int busy_threads = 0;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t new_client = PTHREAD_COND_INITIALIZER;
+pthread_cond_t is_new_client = PTHREAD_COND_INITIALIZER;
 
 HighScore_t* leaderboard;
 
@@ -442,10 +444,19 @@ void serve_client(ClientSession_t* session) {
 }
 
 int get_client() {
-    if (clients) {
-        ClientQueue_t* client = clients;
-        clients = clients->next;
+    if (client_queue) {
+        ClientQueue_t* client = client_queue;
+        client_queue = client_queue->next;
         int sock = client->sock;
+
+        if (client->waiting) {
+            // Notify client no longer needs to wait
+            char message[PACKET_SIZE] = {0};
+            message[0] = PLAY;
+            printf("Notifying waiting client...\n");
+            send(sock, &message, PACKET_SIZE, 0);
+        }
+
         free(client);
         return sock;
     }
@@ -460,34 +471,48 @@ void* handle_client_queue(void* data) {
     pthread_mutex_lock(&mutex);
 
     while(true) {
-        if (clients) {
+        if (client_queue) {
             int sock = get_client();
-
+            busy_threads++;
             pthread_mutex_unlock(&mutex);
 
             ClientSession_t* session = create_client_session(tid, sock);
             if (session) serve_client(session);
 
             pthread_mutex_lock(&mutex);
+            busy_threads--;
         } else {
-            pthread_cond_wait(&new_client, &mutex);
+            pthread_cond_wait(&is_new_client, &mutex);
         }
     }
 }
 
 void queue_client(int sock) {
-    if (!clients) {
-        clients = calloc(1, sizeof(ClientQueue_t));
-        clients->sock = sock;
+    ClientQueue_t* new_client;
+
+    if (!client_queue) {
+        client_queue = calloc(1, sizeof(ClientQueue_t));
+        client_queue->sock = sock;
+        new_client = client_queue;
     } else {
-        ClientQueue_t* client = clients;
+        ClientQueue_t* client = client_queue;
         while (client->next) {
             client = client->next;
         }
         client->next = calloc(1, sizeof(ClientQueue_t));
         client->next->sock = sock;
+        new_client = client->next;
     }
-    pthread_cond_signal(&new_client);
+
+    bool needs_to_wait = busy_threads == NUM_CLIENT_THREADS;
+    if (needs_to_wait) new_client->waiting = true;
+
+    char message[PACKET_SIZE] = {0};
+    message[0] = needs_to_wait ? QUEUED : PLAY;
+    printf("Thread available: %s\n", needs_to_wait ? "NO" : "YES");
+    send(sock, &message, PACKET_SIZE, 0);
+
+    pthread_cond_signal(&is_new_client);
 }
 
 int main(int argc, char* argv[]) {
