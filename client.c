@@ -229,8 +229,21 @@ int login(const char* ip, int port)
         exit(1);
     }
 
-    printf("Connection established.\n");
-    printf("You are required to login with your registered username and password.\n\n");
+    printf("Connection established.\nEntering queue...\n");
+
+    char* sig;
+
+    sig = eavesdrop(sock);
+
+    // printf("sig assigned...\n");
+
+    while (ctoi(sig[0]) != PLAY)
+    {
+        // printf("entered while.\n");
+        sig = eavesdrop(sock);
+    }
+
+    printf("Dequeued. You are required to login with your registered username and password.\n\n");
 
     char username[10];
     char password[10];
