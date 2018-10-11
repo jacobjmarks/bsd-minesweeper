@@ -58,21 +58,6 @@ pthread_cond_t is_new_client = PTHREAD_COND_INITIALIZER;
 HighScore_t* leaderboard;
 
 /**
- * Prints the current state of the given Tile matrix.
- * Debugging purposes only.
- */
-void print_tile_state(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
-    printf("[adjacent_mines revealed is_mine]\n");
-    for (int y = 0; y < NUM_TILES_Y; y++) {
-        for (int x = 0; x < NUM_TILES_X; x++) {
-            Tile_t tile = tiles[x][y];
-            printf("[%d %d %d] ", tile.adjacent_mines, tile.revealed, tile.is_mine);
-        }
-        printf("\n");
-    }
-}
-
-/**
  * Place a set amount of mines at random locations within the given Tile matrix.
  */
 void place_mines(Tile_t tiles[NUM_TILES_X][NUM_TILES_Y]) {
