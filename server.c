@@ -180,36 +180,29 @@ bool authenticate(char* user, char* pass) {
 }
 
 HighScore_t* get_highscore(char* user) {
-    printf("Getting highscore for user: %s\n", user);
+    // Create new leaderboard if none exists
     if (!leaderboard) {
-        printf("  Creating new leaderboard\n");
         leaderboard = calloc(1, sizeof(HighScore_t));
-        memset(leaderboard, 0, sizeof(HighScore_t));
         strcpy(leaderboard->user, user);
         leaderboard->best_time = 999;
-        printf("    User: %s\n", leaderboard->user);
         return leaderboard;
     }
 
-    printf("  Searching leaderboard\n");
+    // Search leaderboard for user
     HighScore_t* previous;
     HighScore_t* score = leaderboard;
     while (score) {
-        printf("    %s %s\n", score->user, user);
         if (strcmp(score->user, user) == 0) {
-            printf("      FOUND\n");
             return score;
         }
         previous = score;
         score = score->next;
     }
 
-    printf("  Creating new entry\n");
+    // Create new entry if user not found
     score = calloc(1, sizeof(HighScore_t));
-    memset(score, 0, sizeof(HighScore_t));
     strcpy(score->user, user);
     score->best_time = 999;
-    printf("    User: %s\n", score->user);
 
     return previous->next = score;
 }
