@@ -543,14 +543,14 @@ void* handle_client_queue(void* data) {
 
     while(true) {
         if (client_queue) {
-            int sock = get_client();
             busy_threads++;
-            pthread_mutex_unlock(&mutex);
-
+            int sock = get_client();
             ClientSession_t* session = create_client_session(tid, sock);
-            if (session) serve_client(session);
 
+            pthread_mutex_unlock(&mutex);
+            if (session) serve_client(session);
             pthread_mutex_lock(&mutex);
+            
             busy_threads--;
         } else {
             pthread_cond_wait(&is_new_client, &mutex);
