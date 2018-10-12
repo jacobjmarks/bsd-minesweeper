@@ -8,36 +8,11 @@
 #include "../common.h"
 #include "auth.h"
 
-/**
- * Authenticates a given user and password against the defined credentials
- * within the external authentication tsv file.
- * 
- * Returns true if the user and password is successfully found.
- */
-bool authenticate(char* user, char* pass) {
-    bool authenticated = false;
+/* -------------------------- FORWARD DECLARATIONS -------------------------- */
 
-    FILE* auth_file = fopen("server/authentication.tsv", "r");
+bool authenticate(char*, char*);
 
-    if (!auth_file) {
-        fprintf(stderr, "ERROR READING AUTH FILE\n");
-        return false;
-    }
-
-    char line[255];
-    fgets(line, sizeof(line), auth_file); // Skip first line
-    while (fgets(line, sizeof(line), auth_file) != NULL) {
-        bool user_match = strcmp(user, strtok(line, "\t")) == 0;
-        bool pass_match = strcmp(pass, strtok(NULL, "\n")) == 0;
-        if (user_match && pass_match) {
-            authenticated = true;
-            break;
-        }
-    }
-    fclose(auth_file);
-
-    return authenticated;
-}
+/* -------------------------------- PUBLIC ---------------------------------- */
 
 /**
  * Attempts to authenticate an incoming client. If successful, the logged in
@@ -88,4 +63,37 @@ int client_login(int sock, char* user) {
     }
 
     return strlen(user) ? 0 : 1;
+}
+
+/* -------------------------------- PRIVATE --------------------------------- */
+
+/**
+ * Authenticates a given user and password against the defined credentials
+ * within the external authentication tsv file.
+ * 
+ * Returns true if the user and password is successfully found.
+ */
+bool authenticate(char* user, char* pass) {
+    bool authenticated = false;
+
+    FILE* auth_file = fopen("server/authentication.tsv", "r");
+
+    if (!auth_file) {
+        fprintf(stderr, "ERROR READING AUTH FILE\n");
+        return false;
+    }
+
+    char line[255];
+    fgets(line, sizeof(line), auth_file); // Skip first line
+    while (fgets(line, sizeof(line), auth_file) != NULL) {
+        bool user_match = strcmp(user, strtok(line, "\t")) == 0;
+        bool pass_match = strcmp(pass, strtok(NULL, "\n")) == 0;
+        if (user_match && pass_match) {
+            authenticated = true;
+            break;
+        }
+    }
+    fclose(auth_file);
+
+    return authenticated;
 }
