@@ -3,8 +3,13 @@ CFLAGS = -Wall
 
 all: server client
 
-server: server.c
-	$(CC) $(CFLAGS) -pthread server.c -o server.o
+server: server/server.c server/clients.c server/auth.c server/game.c
+	$(CC) $(CFLAGS) -pthread \
+		server/server.c \
+		server/clients.c \
+		server/auth.c \
+		server/game.c \
+		-o server.o
 
 client: client.c
 	$(CC) $(CFLAGS) client.c -o client.o
