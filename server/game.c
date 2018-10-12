@@ -1,3 +1,11 @@
+/*******************************************************************************
+ * game.c
+ * 
+ * Includes methods to handle the playing of a game of Minesweeper.
+ * 
+ * Author: Jacob Marks n9188100
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,3 +1,12 @@
+/*******************************************************************************
+ * server.c
+ * 
+ * Handles the entrypoint of the application including the initialisation of a
+ * BSD socket server to listen to incoming client requests.
+ * 
+ * Author: Jacob Marks n9188100
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -12,7 +21,8 @@ int init_server(int);
 /* -------------------------------- PUBLIC ---------------------------------- */
 
 /**
- * Application entrypoint.
+ * Application entrypoint. Takes a single command-line argument specifying the
+ * port to use for the BSD server.
  */
 int main(int argc, char* argv[]) {
     if (argc != 2) {

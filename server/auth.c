@@ -1,3 +1,11 @@
+/**
+ * auth.c
+ * 
+ * Includes methods to handle the login requests of new clients.
+ * 
+ * Author: Jacob Marks n9188100
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

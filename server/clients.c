@@ -1,3 +1,11 @@
+/**
+ * clients.c
+ * 
+ * Includes methods to handle the queueing and serving of incoming clients.
+ * 
+ * Author: Jacob Marks n9188100
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
