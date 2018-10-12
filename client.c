@@ -53,13 +53,18 @@ void spunk(int sock, int protocol, const char* message)
     }
 }
 
+bool valid_coord(int x, int y)
+{
+    return x >= 0 && x <= NUM_TILES_X && y >= 0 && y <= NUM_TILES_Y;
+}
+
 void update_tile(GameState_t* gs, int x, int y, const char c)
 {
     if (DEBUG)
     {
         printf("Attempting to update x:%d y:%d with %c\n", x, y, c);
     }
-    if (x < 0 || x > 9 || y < 0 || y > 9)
+    if (!valid_coord(x, y))
     {
         printf("Invalid field update.\n");
     }
@@ -98,8 +103,6 @@ void draw_field(GameState_t* gs)
 int option(int* x_pos_ref, int* y_pos_ref)
 {
     char option, position[2];
-    int x_pos, y_pos;
-    bool x_valid, y_valid;
 
     do
     {
@@ -118,15 +121,10 @@ int option(int* x_pos_ref, int* y_pos_ref)
         printf("Select position: ");
         scanf("%2s", position);
         while(getchar() != '\n');
-
-        x_pos = ctoi(position[1]) - 1;
-        y_pos = itoascii(position[0]);
-        x_valid = x_pos >= 0 && x_pos < NUM_TILES_X;
-        y_valid = y_pos >= 0 && y_pos < NUM_TILES_Y;
-    } while (!x_valid || !y_valid);
+        *x_pos_ref = ctoi(position[1]) - 1;
+        *y_pos_ref = itoascii(position[0]);
+    } while (!valid_coord(*x_pos_ref, *y_pos_ref));
     
-    *x_pos_ref = x_pos;
-    *y_pos_ref = y_pos;
     return option == 'P' ? FLAG_TILE : REVEAL_TILE;
 }
 
