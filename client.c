@@ -36,7 +36,7 @@ void spunk(int sock, int protocol, char* message)
     char packet[strlen(message) + 1];
     packet[0] = protocol;
     strcat(packet, message);
-    if (send_string(sock, packet) < 0)
+    if (send_string(sock, packet) <= 0)
     {
         printf("Connection failure.\n");
         exit(1);
