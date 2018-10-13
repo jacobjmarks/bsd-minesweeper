@@ -11,23 +11,6 @@
 
 #include "common.h"
 
-int send_string(int fd, char* message)
-{
-    if (DEBUG)
-        printf("Sending '%s'...\n", message);
-    return write(fd, message, strlen(message));
-}
-
-char* recv_string(int fd)
-{
-    int bslength;
-    read(fd, &bslength, sizeof(bslength));
-    char* response = calloc(bslength, sizeof(char));
-    read(fd, response, sizeof(response));
-    if (DEBUG)
-        printf("Response: '%s' (len %d)\n", response, (int)strlen(response));
-    return response;
-}
 
 int send_int(int fd, int message)
 {
@@ -39,7 +22,7 @@ int send_int(int fd, int message)
 
 int recv_int(int fd, int* response)
 {
-    if (read(fd, response, sizeof(response) <= 0))
+    if (read(fd, response, sizeof(response)) <= 0)
     {
         return 0;
     }
@@ -50,4 +33,25 @@ int recv_int(int fd, int* response)
             printf("Response: '%d'", *response);
         return 1;
     }
+}
+
+int send_string(int fd, char* message)
+{
+    if (DEBUG)
+        printf("Sending '%s'...\n", message);
+    return send_int(fd, strlen(message)) && write(fd, message, strlen(message));
+}
+
+char* recv_string(int fd)
+{
+    int length;
+    if (recv_int(fd, &length))
+    {
+        char* response = calloc(length, sizeof(char));
+        read(fd, response, sizeof(response));
+        if (DEBUG)
+            printf("Response: '%s' (len %d)\n", response, (int)strlen(response));
+        return response;
+    }
+    return strdup("");
 }
