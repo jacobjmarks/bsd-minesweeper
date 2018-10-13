@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+#include "../common.h"
 #include "structs.h"
 #include "auth.h"
 #include "game.h"
@@ -60,7 +61,8 @@ void queue_client(int sock) {
     char message[PACKET_SIZE] = {0};
     message[0] = itoc(needs_to_wait ? QUEUED : PLAY);
     printf("Thread available: %s\n", needs_to_wait ? "NO" : "YES");
-    send(sock, &message, PACKET_SIZE, 0);
+    // send(sock, &message, PACKET_SIZE, 0);
+    send_string(sock, message);
 
     pthread_cond_signal(&is_new_client);
 }
@@ -110,7 +112,8 @@ int get_client() {
             char message[PACKET_SIZE] = {0};
             message[0] = itoc(PLAY);
             printf("Notifying waiting client...\n");
-            send(sock, &message, PACKET_SIZE, 0);
+            // send(sock, &message, PACKET_SIZE, 0);
+            send_string(sock, message);
         }
 
         free(client);
@@ -143,11 +146,16 @@ ClientSession_t* create_client_session(int tid, int sock) {
  * Serves the new client specified in the given ClientSession.
  */
 void serve_client(ClientSession_t* session) {
+    
+
     printf("T%d Listening...\n", session->tid);
 
     while (true) {
-        char request[PACKET_SIZE];
-        if (read(session->sock, request, PACKET_SIZE) <= 0) {
+        // char request[PACKET_SIZE];
+        char* request;
+
+        // if (read(session->sock, request, PACKET_SIZE) <= 0) {
+        if (recv_string(session->sock, &request)) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
         }

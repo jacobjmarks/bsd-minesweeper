@@ -1,3 +1,12 @@
+/**
+ * client.c
+ * 
+ * Client program for playing Minesweeper.
+ * 
+ * Author: Benjamin Saljooghi n9448233
+ */
+
+
 #include <stdio.h> 
 #include <sys/socket.h> 
 #include <stdlib.h> 
@@ -22,13 +31,14 @@ typedef struct GameState {
 
 char* eavesdrop(int fd)
 {
-    char* response = recv_string(fd);
-    if (strlen(response) == 0)
+    char* response;
+    if (recv_string(fd, &response))
     {
-        printf("Connection failure.\n");
-        exit(1);
+        printf("Returning response: '%s'\n", response);
+        return response;
     }
-    return response;
+    printf("Connection failure.\n");
+    exit(1);
 }
 
 void spunk(int sock, int protocol, char* message)
@@ -45,7 +55,7 @@ void spunk(int sock, int protocol, char* message)
 
 bool valid_coord(int x, int y)
 {
-    return x >= 0 && x <= NUM_TILES_X && y >= 0 && y <= NUM_TILES_Y;
+    return x >= 0 && x < NUM_TILES_X && y >= 0 && y < NUM_TILES_Y;
 }
 
 void update_tile(GameState_t* gs, int x, int y, const char c)
@@ -220,13 +230,17 @@ int login(const char* ip, int port)
 
     printf("Connection established.\n");
 
-    if (ctoi(eavesdrop(sock)[0]) != PLAY)
+    char* play_response = eavesdrop(sock);
+    
+    printf("Response is: %s\n", play_response);
+
+    if (ctoi(play_response[0]) != PLAY)
     {
         printf("Server is at capacity. You have been placed into a queue...\n");
         eavesdrop(sock);
     }
 
-    printf("Please login.\n\n");
+    printf("Please login.\n");
 
     char username[10];
     char password[10];

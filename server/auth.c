@@ -32,8 +32,10 @@ int client_login(int sock, char* user) {
     bool authenticated = false;
 
     while (!authenticated) {
-        char request[PACKET_SIZE];
-        if (read(sock, request, PACKET_SIZE) <= 0) {
+        // char request[PACKET_SIZE];
+        char* request;
+        // if (read(sock, request, PACKET_SIZE) <= 0) {
+        if (recv_string(sock, &request) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
             return 1;
         }
@@ -67,7 +69,8 @@ int client_login(int sock, char* user) {
         char response[PACKET_SIZE] = {0};
         strcat(response, authenticated ? "1" : "0");
         printf("Responding: %s\n", response);
-        send(sock, &response, PACKET_SIZE, 0);
+        // send(sock, &response, PACKET_SIZE, 0);
+        send_string(sock, response);
     }
 
     return strlen(user) ? 0 : 1;
