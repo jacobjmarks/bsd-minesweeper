@@ -20,33 +20,23 @@ typedef struct GameState {
     int remaining_mines;
 } GameState_t;
 
-char* eavesdrop(int sock)
+char* eavesdrop(int fd)
 {
-    static char response[PACKET_SIZE];
-    memset(response, 0, sizeof(response));
-    if (read(sock, response, PACKET_SIZE) <= 0)
+    char* response = recv_string(fd);
+    if (strlen(response) == 0)
     {
         printf("Connection failure.\n");
         exit(1);
     }
-    if (DEBUG)
-    {
-        printf("Response: '%s' (len %d)\n", response, (int)strlen(response));
-    }
     return response;
 }
 
-void spunk(int sock, int protocol, const char* message)
+void spunk(int sock, int protocol, char* message)
 {
-    char packet[PACKET_SIZE] = {0};
-    packet[0] = itoc(protocol);
-    strncat(packet, message, PACKET_SIZE - 1);
-
-    if (DEBUG)
-    {
-        printf("Sending '%s'...\n", packet);
-    }
-    if (write(sock, packet, PACKET_SIZE) < 0)
+    char packet[strlen(message) + 1];
+    packet[0] = protocol;
+    strcat(packet, message);
+    if (send_string(sock, packet) < 0)
     {
         printf("Connection failure.\n");
         exit(1);
@@ -143,11 +133,9 @@ int game(int sock)
     while((protocol = option(&x_pos, &y_pos)) != QUIT)
     {
         char* response;
-        char pos_request[PACKET_SIZE] = {0};
-        
+        char pos_request[3] = {0};
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos); 
-
         spunk(sock, protocol, pos_request);
         switch (protocol)
         {
@@ -238,7 +226,7 @@ int login(const char* ip, int port)
         eavesdrop(sock);
     }
 
-    printf("You are required to login with your registered username and password.\n\n");
+    printf("Please login.\n\n");
 
     char username[10];
     char password[10];
@@ -248,7 +236,7 @@ int login(const char* ip, int port)
     printf("Enter your password: ");
     scanf(" %10s", password);
 
-    char credentials[PACKET_SIZE];
+    char credentials[22];
     sprintf(credentials,"%s:%s", username, password);
     
     spunk(sock, LOGIN, credentials);
@@ -271,7 +259,10 @@ void leaderboard(int sock)
     char* response;
     if ((response = eavesdrop(sock))[0] == TERMINATOR)
     {
-        printf("There is no information currently stored in the leaderboard. Try again later.\n");
+        printf(
+            "There is no information currently stored in the leaderboard."
+            "Try again later.\n"
+        );
     }
         
     while(response[0] != TERMINATOR)
@@ -296,7 +287,7 @@ int main(int argc, char* argv[])
 {
     if (argc != 3)
     {
-        printf("Invalid usage! Should be: client.o [ip] [port]\n");
+        fprintf(stderr, "Invalid usage! Should be: client.o [ip] [port]\n");
         return 1;
     }
  
@@ -322,14 +313,14 @@ int main(int argc, char* argv[])
 
         switch (selection)
         {
-            case PLAY:
+            case 1: // Play
                 game(sock);
                 break;
-            case LEADERBOARD:
+            case 2: // Leaderboard
                 leaderboard(sock);
                 break;
         }
-    } while (selection != QUIT);
+    } while (selection != 3); // Quit
     
     printf("\nThanks for playing!\n");
 
