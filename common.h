@@ -15,9 +15,9 @@
 
 enum { LOGIN, PLAY, LEADERBOARD, QUIT, LOSE, WIN, REVEAL_TILE, FLAG_TILE, QUEUED };
 
-char* recv_string(int fd);
 int send_string(int fd, char* message);
-
-
+char* recv_string(int fd);
+int send_int(int fd, int message);
+int recv_int(int fd, int* response);
 
 #endif

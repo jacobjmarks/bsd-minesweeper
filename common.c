@@ -11,6 +11,12 @@
 
 #include "common.h"
 
+int send_string(int fd, char* message)
+{
+    if (DEBUG)
+        printf("Sending '%s'...\n", message);
+    return write(fd, message, strlen(message));
+}
 
 char* recv_string(int fd)
 {
@@ -23,9 +29,25 @@ char* recv_string(int fd)
     return response;
 }
 
-int send_string(int fd, char* message)
+int send_int(int fd, int message)
 {
     if (DEBUG)
-        printf("Sending '%s'...\n", message);
-    return write(fd, message, strlen(message));
+        printf("Sending '%d'...\n", message);
+    message = htons(message);
+    return write(fd, &message, sizeof(int));
+}
+
+int recv_int(int fd, int* response)
+{
+    if (read(fd, response, sizeof(response) <= 0))
+    {
+        return 0;
+    }
+    else
+    {
+        *response = ntohs(*response);
+        if (DEBUG)
+            printf("Response: '%d'", *response);
+        return 1;
+    }
 }
