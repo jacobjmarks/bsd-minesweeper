@@ -155,7 +155,7 @@ void serve_client(ClientSession_t* session) {
         char* request;
 
         // if (read(session->sock, request, PACKET_SIZE) <= 0) {
-        if (recv_string(session->sock, &request)) {
+        if (recv_string(session->sock, &request) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
         }

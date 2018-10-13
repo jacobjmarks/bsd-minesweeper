@@ -13,7 +13,7 @@
 
 #define DEBUG 1
 
-enum { LOGIN, PLAY, LEADERBOARD, QUIT, LOSE, WIN, REVEAL_TILE, FLAG_TILE, QUEUED };
+enum { LOGIN=1, PLAY, LEADERBOARD, QUIT, LOSE, WIN, REVEAL_TILE, FLAG_TILE, QUEUED };
 
 // 0 or 1
 int send_string(int fd, char* message);

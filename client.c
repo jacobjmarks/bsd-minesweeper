@@ -44,7 +44,7 @@ char* eavesdrop(int fd)
 void spunk(int sock, int protocol, char* message)
 {
     char packet[strlen(message) + 1];
-    packet[0] = protocol;
+    packet[0] = itoc(protocol);
     strcat(packet, message);
     if (send_string(sock, packet) <= 0)
     {
@@ -143,7 +143,7 @@ int game(int sock)
     while((protocol = option(&x_pos, &y_pos)) != QUIT)
     {
         char* response;
-        char pos_request[3] = {0};
+        char pos_request[50] = {0};
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos); 
         spunk(sock, protocol, pos_request);
