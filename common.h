@@ -15,13 +15,9 @@
 
 enum { LOGIN=1, PLAY, LEADERBOARD, QUIT, LOSE, WIN, REVEAL_TILE, FLAG_TILE, QUEUED };
 
-// 0 or 1
+int send_int(int fd, uint32_t message);
+int recv_int(int fd, uint32_t* response);
 int send_string(int fd, char* message);
-// 0 or 1
 int recv_string(int fd, char** response);
-// 0 or 1
-int send_int(int fd, int message);
-// 0 or 1
-int recv_int(int fd, int* response);
 
 #endif

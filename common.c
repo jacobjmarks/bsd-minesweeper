@@ -12,31 +12,30 @@
 #include "common.h"
 
 
-int send_int(int fd, int message)
+int send_int(int fd, uint32_t message)
 {
-    message = htons(message);
-    return write(fd, &message, sizeof(int));
+    message = htonl(message);
+    return write(fd, &message, sizeof(uint32_t));
 }
 
-int recv_int(int fd, int* response)
+int recv_int(int fd, uint32_t* response)
 {
-    if (read(fd, response, sizeof(int)) <= 0)
+    if (read(fd, response, sizeof(uint32_t)) <= 0)
     {
         return 0;
     }
-    *response = ntohs(*response);
+    *response = ntohl(*response);
     return 1;
 }
 
 int send_string(int fd, char* message)
 {
-    send_int(fd, strlen(message));
-    return write(fd, message, strlen(message));
+    return send_int(fd, strlen(message)) && write(fd, message, strlen(message));
 }
 
 int recv_string(int fd, char** response)
 {
-    int length;
+    uint32_t length;
     if (recv_int(fd, &length) <= 0)
     {
         return 0;
