@@ -29,21 +29,17 @@ typedef struct GameState {
     int remaining_mines;
 } GameState_t;
 
-void eavesdrop(int fd, char** response)
+int eavesdrop(int fd, char** response)
 {
-    printf("Attempting to eavesdrop...\n");
-    if (recv_string(fd, response))
+    if (recv_string(fd, response) <= 0)
     {
-        printf("Writing response: '%s'\n", *response);
-        return;
+        printf("Connection failure.\n");
+        exit(1);
     }
-    printf("Connection failure.\n");
-    exit(1);
 }
 
 void spunk(int fd, int protocol, char* message)
 {
-    printf("Attempting to send protocol %d with message '%s'\n", protocol, message);
     char* packet = calloc(strlen(message) + 1, sizeof(char));
     packet[0] = itoc(protocol);
     strcat(packet, message);
