@@ -6,7 +6,6 @@
  * Author: Benjamin Saljooghi n9448233
  */
 
-
 #include <stdio.h> 
 #include <sys/socket.h> 
 #include <stdlib.h> 
@@ -23,6 +22,8 @@
  * 
  * fd: the file descriptor for the socket
  * message: an int to be sent
+ * 
+ * returns: number of bytes sent or -1 if error
  */ 
 int send_int(int fd, uint32_t message)
 {
@@ -36,15 +37,14 @@ int send_int(int fd, uint32_t message)
  * 
  * fd: the file descriptor for the socket
  * response: an int pointer that the response will be written to.
+ * 
+ * returns: number of bytes received or -1 if error
  */ 
 int recv_int(int fd, uint32_t* response)
 {
-    if (read(fd, response, sizeof(uint32_t)) <= 0)
-    {
-        return 0;
-    }
+    int bytes_read = read(fd, response, sizeof(uint32_t));
     *response = ntohl(*response);
-    return 1;
+    return bytes_read;
 }
 
 /**
@@ -55,10 +55,16 @@ int recv_int(int fd, uint32_t* response)
  * fd: the file descriptor for the socket
  * message: a string to be sent
  * 
+ * returns: number of bytes sent or -1 if error
  */ 
 int send_string(int fd, char* message)
 {
-    return send_int(fd, strlen(message)) && write(fd, message, strlen(message));
+    int bytes_sent = send_int(fd, strlen(message));
+    if (bytes_sent <= 0)
+    {
+        return bytes_sent;
+    }
+    return write(fd, message, strlen(message));
 }
 
 /**
@@ -70,13 +76,15 @@ int send_string(int fd, char* message)
  * response: a string pointer that the response will be written to (memory must
  * be freed by the calling function)
  * 
+ * returns: number of bytes received or -1 if error 
  */ 
 int recv_string(int fd, char** response)
 {
     uint32_t length;
-    if (recv_int(fd, &length) <= 0)
+    int bytes_read = recv_int(fd, &length);
+    if (bytes_read <= 0)
     {
-        return 0;
+        return bytes_read;
     }
     *response = calloc(length, sizeof(char));
     return read(fd, *response, length);
