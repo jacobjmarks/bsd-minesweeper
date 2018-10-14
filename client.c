@@ -41,13 +41,13 @@ void eavesdrop(int fd, char** response)
     exit(1);
 }
 
-void spunk(int sock, int protocol, char* message)
+void spunk(int fd, int protocol, char* message)
 {
     printf("Attempting to send protocol %d with message '%s'\n", protocol, message);
     char* packet = calloc(strlen(message) + 1, sizeof(char));
     packet[0] = itoc(protocol);
     strcat(packet, message);
-    if (send_string(sock, packet) <= 0)
+    if (send_string(fd, packet) <= 0)
     {
         printf("Connection failure.\n");
         exit(1);
@@ -130,14 +130,14 @@ int option(int* x_pos_ref, int* y_pos_ref)
     return option == 'P' ? FLAG_TILE : REVEAL_TILE;
 }
 
-int game(int sock)
+int game(int fd)
 {
     GameState_t gs;
     memset(&gs, 0, sizeof(GameState_t));
 
-    spunk(sock, PLAY, "");
+    spunk(fd, PLAY, "");
     char* remaining_mines;
-    eavesdrop(sock, &remaining_mines);
+    eavesdrop(fd, &remaining_mines);
     gs.remaining_mines = atoi(remaining_mines);
     free(remaining_mines);
 
@@ -152,8 +152,8 @@ int game(int sock)
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos);
         printf("Pos request is %s\n", pos_request);
-        spunk(sock, protocol, pos_request);
-        eavesdrop(sock, &response);
+        spunk(fd, protocol, pos_request);
+        eavesdrop(fd, &response);
         switch (protocol)
         {
             case FLAG_TILE:
@@ -179,7 +179,7 @@ int game(int sock)
                     }
                     update_tile(&gs, response_x, response_y, response_char);
                     free(response);
-                    eavesdrop(sock, &response);
+                    eavesdrop(fd, &response);
 
                 }
 
@@ -203,18 +203,18 @@ int game(int sock)
             return LOSE;
         }
     }
-    spunk(sock, QUIT, "");
+    spunk(fd, QUIT, "");
     return QUIT;
 }
 
 
-void leaderboard(int sock)
+void leaderboard(int fd)
 {
     printf("============================================================\n");
 
-    spunk(sock, LEADERBOARD, "");   
+    spunk(fd, LEADERBOARD, "");   
     char* response;
-    eavesdrop(sock, &response);
+    eavesdrop(fd, &response);
     if (response[0] == TERMINATOR)
     {
         printf(
@@ -235,7 +235,7 @@ void leaderboard(int sock)
                 seconds,
                 games_won,
                 games_played);
-        eavesdrop(sock, &response);
+        eavesdrop(fd, &response);
     }            
 
     free(response);
@@ -275,11 +275,11 @@ int login(const char* ip, int port)
     printf("Connection established.\n");
 
     char* play_response;
-    eavesdrop(sock, &play_response);
+    eavesdrop(fd, &play_response);
     if (ctoi(play_response[0]) != PLAY)
     {
         printf("Server is at capacity. You have been placed into a queue...\n");
-        eavesdrop(sock, &play_response);
+        eavesdrop(fd, &play_response);
     }
     // free(play_response);
 
@@ -296,19 +296,19 @@ int login(const char* ip, int port)
     char credentials[22];
     sprintf(credentials,"%s:%s", username, password);
     
-    spunk(sock, LOGIN, credentials);
+    spunk(fd, LOGIN, credentials);
     
     // free(username);
     // free(password);
     // free(credentials);
 
     char* response;
-    eavesdrop(sock, &response);
+    eavesdrop(fd, &response);
 
     if (atoi(response))
     {
         free(response);
-        return sock;
+        return fd;
     }
     
     free(response);
@@ -326,7 +326,7 @@ int main(int argc, char* argv[])
  
     const char* ip = argv[1];
     int port = atoi(argv[2]);
-    int sock = login(ip, port);
+    int fd = login(ip, port);
        
     int selection;
     do
@@ -347,10 +347,10 @@ int main(int argc, char* argv[])
         switch (selection)
         {
             case 1: // Play
-                game(sock);
+                game(fd);
                 break;
             case 2: // Leaderboard
-                leaderboard(sock);
+                leaderboard(fd);
                 break;
         }
     } while (selection != 3); // Quit
