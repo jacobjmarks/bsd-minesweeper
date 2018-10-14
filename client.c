@@ -26,7 +26,7 @@
 
 typedef struct GameState {
     char field[NUM_TILES_X][NUM_TILES_Y];
-    int remaining_mines;
+    uint32_t remaining_mines;
 } GameState_t;
 
 /**
@@ -108,7 +108,7 @@ void update_tile(GameState_t* gs, int x, int y, const char c)
 /**
  * draws the field on the terminal
  * 
- * gs: the gamestate struct containing the field 
+ * gs: the gamestate struct containing the field
  */ 
 void draw_field(GameState_t* gs)
 {
@@ -175,14 +175,10 @@ int option(int* x, int* y)
 
 int game(int fd)
 {
-    GameState_t gs;
-    memset(&gs, 0, sizeof(GameState_t));
+    GameState_t gs; memset(&gs, 0, sizeof(GameState_t));
 
     spunk(fd, PLAY, "");
-    char* remaining_mines;
-    eavesdrop(fd, &remaining_mines);
-    gs.remaining_mines = atoi(remaining_mines);
-    free(remaining_mines);
+    recv_int(fd, &gs.remaining_mines);
 
     int protocol, x_pos, y_pos;
     int gameover = 0;
@@ -194,7 +190,6 @@ int game(int fd)
         char pos_request[50] = {0};
         pos_request[0] = itoc(x_pos);
         pos_request[1] = itoc(y_pos);
-        printf("Pos request is %s\n", pos_request);
         spunk(fd, protocol, pos_request);
         eavesdrop(fd, &response);
         switch (protocol)
@@ -356,7 +351,7 @@ int main(int argc, char* argv[])
 {
     if (argc != 3)
     {
-        fprintf(stderr, "Invalid usage! Should be: client.o [ip] [port]\n");
+        fprintf(stderr, "Invalid usage! Should be: ./client.o [ip] [port]\n");
         return 1;
     }
  

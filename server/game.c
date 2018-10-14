@@ -42,11 +42,13 @@ void play_game(ClientSession_t* session) {
     session->gamestate->start_time = time(NULL);
     session->score->games_played++;
 
-    char message[PACKET_SIZE] = {0};
-    sprintf(message, "%d", session->gamestate->mines_remaining);
-    printf("Indicating initial mine count of %s...\n", message);
+    // char message[PACKET_SIZE] = {0};
+    // sprintf(message, "%d", session->gamestate->mines_remaining);
+    // printf("Indicating initial mine count of %s...\n", message);
     // send(session->sock, &message, PACKET_SIZE, 0);
-    send_string(session->sock, message);
+    printf("Sending initial mine count of %d...\n",
+            session->gamestate->mines_remaining);
+    send_int(session->sock, session->gamestate->mines_remaining);
 
     while (!session->gamestate->game_over) {
         // char request[PACKET_SIZE];

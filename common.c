@@ -2,15 +2,11 @@
 #include <sys/socket.h> 
 #include <stdlib.h> 
 #include <netinet/in.h> 
-#include <string.h> 
-#include <stdbool.h>
 #include <unistd.h>
-#include <time.h>
 #include <arpa/inet.h>
-#include <ctype.h>
+#include <string.h>
 
 #include "common.h"
-
 
 int send_int(int fd, uint32_t message)
 {
