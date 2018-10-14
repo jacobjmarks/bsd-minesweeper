@@ -33,13 +33,13 @@ typedef struct GameState {
  * Receives the next string sent by the server. Gracefully terminates
  * the client if no connection could be made
  * 
- * fd: the file descriptor for the socket
+ * socket_fd: the file descriptor for the socket
  * response: a string pointer that the response will be written to (memory must
  * be freed by the calling function)
  */
-void eavesdrop(int fd, char** response)
+void eavesdrop(int socket_fd, char** response)
 {
-    if (recv_string(fd, response) <= 0)
+    if (recv_string(socket_fd, response) <= 0)
     {
         printf("Connection failure.\n");
         exit(1);
@@ -50,17 +50,17 @@ void eavesdrop(int fd, char** response)
  * Sends a string prepended by a protocol to the server. Gracefully terminates
  * the client if no connection could be made
  * 
- * fd: the file descriptor for the socket
+ * socket_fd: the file descriptor for the socket
  * protocol: a single-digit between 1 and 9 inclusive specifying the type of
  *           message that is being sent (see common.h)
  * message: the string to be sent
  */
-void spunk(int fd, int protocol, char* message)
+void spunk(int socket_fd, int protocol, char* message)
 {
     char* packet = calloc(strlen(message) + 1, sizeof(char));
     packet[0] = itoc(protocol);
     strcat(packet, message);
-    if (send_string(fd, packet) <= 0)
+    if (send_string(socket_fd, packet) <= 0)
     {
         printf("Connection failure.\n");
         exit(1);
@@ -177,18 +177,18 @@ int option(int* x, int* y)
 /**
  * plays a game of Minesweeper
  * 
- * fd: file descriptor to the socket for server communication
+ * socket_fd: file descriptor to the socket for server communication
  * 
  * returns: the result of the game (QUIT, WIN, or LOSE)
  */
-int game(int fd)
+int game(int socket_fd)
 {
     GameState_t gs = {0};
 
     // Tell the server the user has requested to play
-    spunk(fd, PLAY, "");
+    spunk(socket_fd, PLAY, "");
     // Get the initial mine count
-    recv_int(fd, &gs.remaining_mines);
+    recv_int(socket_fd, &gs.remaining_mines);
 
     int protocol, x_pos, y_pos;
     bool gameover = false;
@@ -200,12 +200,12 @@ int game(int fd)
     {
         // Tell the server the user's move
         char pos_request[] = {itoc(x_pos), itoc(y_pos)};
-        spunk(fd, protocol, pos_request);
+        spunk(socket_fd, protocol, pos_request);
         
         // Get the first response from the server. Interpret the
         // response differently based on whether the user flagged
         // or revealed.
-        eavesdrop(fd, &response);
+        eavesdrop(socket_fd, &response);
         switch (protocol)
         {
             case FLAG_TILE:
@@ -234,7 +234,7 @@ int game(int fd)
                         gameover = true;
                     }
                     update_tile(&gs, response_x, response_y, response_char);
-                    eavesdrop(fd, &response);
+                    eavesdrop(socket_fd, &response);
                 }
 
                 break;
@@ -254,23 +254,23 @@ int game(int fd)
             return LOSE;
         }
     }
-    spunk(fd, QUIT, "");
+    spunk(socket_fd, QUIT, "");
     return QUIT;
 }
 
 /**
  * Gets and prints the server leaderboard
  * 
- * fd: file descriptor to the socket for server communication
+ * socket_fd: file descriptor to the socket for server communication
  * 
  */ 
-void leaderboard(int fd)
+void leaderboard(int socket_fd)
 {
     printf("============================================================\n");
 
-    spunk(fd, LEADERBOARD, "");   
+    spunk(socket_fd, LEADERBOARD, "");   
     char* response;
-    eavesdrop(fd, &response);
+    eavesdrop(socket_fd, &response);
     if (response[0] == TERMINATOR)
     {
         printf(
@@ -291,7 +291,7 @@ void leaderboard(int fd)
                 seconds,
                 games_won,
                 games_played);
-        eavesdrop(fd, &response);
+        eavesdrop(socket_fd, &response);
     }            
 
     free(response);
@@ -312,10 +312,10 @@ int login(const char* ip, int port)
     printf("\nConnecting to %s:%d...\n", ip, port);
     
     struct sockaddr_in serv_addr; 
-    int fd;
+    int socket_fd;
 
     // Setup a socket to be used for connection
-    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
+    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     {
         printf("\nSocket creation error.\n");
         exit(1);
@@ -332,7 +332,7 @@ int login(const char* ip, int port)
     }
 
     // Connect to the server
-    if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+    if (connect(socket_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
     {
         printf("\nConnection failed.\n");
         exit(1);
@@ -342,11 +342,11 @@ int login(const char* ip, int port)
 
     // Wait in queue until server is not busy
     char* play_response;
-    eavesdrop(fd, &play_response);
+    eavesdrop(socket_fd, &play_response);
     if (ctoi(play_response[0]) != PLAY)
     {
         printf("Server is at capacity. You have been placed into a queue...\n");
-        eavesdrop(fd, &play_response);
+        eavesdrop(socket_fd, &play_response);
     }
 
     // Request login credentials from user
@@ -361,15 +361,15 @@ int login(const char* ip, int port)
     sprintf(credentials,"%s:%s", username, password);
     
     // Send login credentials to server
-    spunk(fd, LOGIN, credentials);
+    spunk(socket_fd, LOGIN, credentials);
 
     // Continue to main menu if server authenticated the credentials
     char* response;
-    eavesdrop(fd, &response);
+    eavesdrop(socket_fd, &response);
     if (atoi(response))
     {
         free(response);
-        return fd;
+        return socket_fd;
     }
     
     free(response);
@@ -393,7 +393,7 @@ int main(int argc, char* argv[])
  
     const char* ip = argv[1];
     int port = atoi(argv[2]);
-    int fd = login(ip, port);
+    int socket_fd = login(ip, port);
        
     int selection;
     // Present main menu to client until they quit (menu option 3)
@@ -416,11 +416,11 @@ int main(int argc, char* argv[])
         {
             // Play (menu option 1)
             case 1:
-                game(fd);
+                game(socket_fd);
                 break;
             // Leaderboard (menu option 2)
             case 2:
-                leaderboard(fd);
+                leaderboard(socket_fd);
                 break;
         }
     } while (selection != 3);
