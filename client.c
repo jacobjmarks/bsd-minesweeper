@@ -248,9 +248,9 @@ int login(const char* ip, int port)
     printf("\nConnecting to %s:%d...\n", ip, port);
     
     struct sockaddr_in serv_addr; 
-    int sock;
+    int fd;
 
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     {
         printf("\nSocket creation error.\n");
         exit(1);
@@ -266,7 +266,7 @@ int login(const char* ip, int port)
         exit(1);
     }
 
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+    if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
     {
         printf("\nConnection failed.\n");
         exit(1);
