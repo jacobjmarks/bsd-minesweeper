@@ -29,7 +29,15 @@ typedef struct GameState {
     int remaining_mines;
 } GameState_t;
 
-int eavesdrop(int fd, char** response)
+/**
+ * Receives the next string sent by the server. Gracefully terminates
+ * the client if no connection could be made
+ * 
+ * fd: the file descriptor for the socket
+ * response: a string pointer that the response will be written to (memory must
+ * be freed by the calling function)
+ */
+void eavesdrop(int fd, char** response)
 {
     if (recv_string(fd, response) <= 0)
     {
@@ -38,6 +46,15 @@ int eavesdrop(int fd, char** response)
     }
 }
 
+/**
+ * Sends a string prepended by a protocol to the server. Gracefully terminates
+ * the client if no connection could be made
+ * 
+ * fd: the file descriptor for the socket
+ * protocol: a single-digit between 1 and 9 inclusive specifying the type of
+ *           message that is being sent (see common.h)
+ * message: the string to be sent
+ */
 void spunk(int fd, int protocol, char* message)
 {
     char* packet = calloc(strlen(message) + 1, sizeof(char));
@@ -51,11 +68,27 @@ void spunk(int fd, int protocol, char* message)
     free(packet);
 }
 
+/**
+ * checks if a coordinate is within the limits of the field
+ * 
+ * x: the x-coordinate
+ * y: the y-coordinate
+ * 
+ * returns: 1 if the coordinate was valid, otherwise 0
+ */ 
 bool valid_coord(int x, int y)
 {
     return x >= 0 && x < NUM_TILES_X && y >= 0 && y < NUM_TILES_Y;
 }
 
+/**
+ * updates a field tile at a coordinate with a new character
+ * 
+ * gs: The gamestate struct containing the field
+ * x: the x-coordinate
+ * y: the y-coordinate
+ * c: the new character
+ */ 
 void update_tile(GameState_t* gs, int x, int y, const char c)
 {
     if (DEBUG)
@@ -72,6 +105,11 @@ void update_tile(GameState_t* gs, int x, int y, const char c)
     }   
 }
 
+/**
+ * draws the field on the terminal
+ * 
+ * gs: the gamestate struct containing the field 
+ */ 
 void draw_field(GameState_t* gs)
 {
     // system("clear");
@@ -98,7 +136,16 @@ void draw_field(GameState_t* gs)
     printf("\n");
 }
 
-int option(int* x_pos_ref, int* y_pos_ref)
+/**
+ * gets the next move from the user
+ * 
+ * x: a pointer to an x-coordinate, updated by the function
+ * y: a pointer to a y-coordinate, updated by the function
+ * 
+ * returns: an int representing the option selected (either QUIT,
+ *          FLAG_TILE, or REVEAL_TILE)
+ */ 
+int option(int* x, int* y)
 {
     char option, position[2];
 
@@ -119,9 +166,9 @@ int option(int* x_pos_ref, int* y_pos_ref)
         printf("Select position: ");
         scanf("%2s", position);
         while(getchar() != '\n');
-        *x_pos_ref = ctoi(position[1]) - 1;
-        *y_pos_ref = itoascii(position[0]);
-    } while (!valid_coord(*x_pos_ref, *y_pos_ref));
+        *x = ctoi(position[1]) - 1;
+        *y = itoascii(position[0]);
+    } while (!valid_coord(*x, *y));
     
     return option == 'P' ? FLAG_TILE : REVEAL_TILE;
 }
@@ -179,9 +226,6 @@ int game(int fd)
 
                 }
 
-                break;
-            case QUIT:
-                printf("Client protocol error! Consult programmers!");
                 break;
             default:
                 printf("Client protocol error! Consult programmers!");
@@ -293,10 +337,6 @@ int login(const char* ip, int port)
     sprintf(credentials,"%s:%s", username, password);
     
     spunk(fd, LOGIN, credentials);
-    
-    // free(username);
-    // free(password);
-    // free(credentials);
 
     char* response;
     eavesdrop(fd, &response);
@@ -342,14 +382,14 @@ int main(int argc, char* argv[])
 
         switch (selection)
         {
-            case 1: // Play
+            case 1:
                 game(fd);
                 break;
-            case 2: // Leaderboard
+            case 2:
                 leaderboard(fd);
                 break;
         }
-    } while (selection != 3); // Quit
+    } while (selection != 3);
     
     printf("\nThanks for playing!\n");
 
