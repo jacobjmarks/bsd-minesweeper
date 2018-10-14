@@ -112,7 +112,6 @@ void update_tile(GameState_t* gs, int x, int y, const char c)
  */ 
 void draw_field(GameState_t* gs)
 {
-    // system("clear");
     printf("\n\n\nRemaining mines: %d\n\n ", gs->remaining_mines);
 
     for (int x = 0; x < NUM_TILES_X; x++)
@@ -173,6 +172,13 @@ int option(int* x, int* y)
     return option == 'P' ? FLAG_TILE : REVEAL_TILE;
 }
 
+/**
+ * plays a game of Minesweeper
+ * 
+ * fd: file descriptor to the socket for server communication
+ * 
+ * returns: the result of the game (QUIT, WIN, or LOSE)
+ */
 int game(int fd)
 {
     GameState_t gs = {0};
@@ -219,7 +225,7 @@ int game(int fd)
 
                 break;
             default:
-                printf("Client protocol error! Consult programmers!");
+                printf("Client protocol error! Consult programmers!\n");
                 break;
         }
         draw_field(&gs);
@@ -238,7 +244,12 @@ int game(int fd)
     return QUIT;
 }
 
-
+/**
+ * Gets and prints the server leaderboard
+ * 
+ * fd: file descriptor to the socket for server communication
+ * 
+ */ 
 void leaderboard(int fd)
 {
     printf("============================================================\n");
@@ -274,6 +285,14 @@ void leaderboard(int fd)
     printf("============================================================\n");
 }
 
+/**
+ * Logs in to a Minesweeper server
+ * 
+ * ip: a string representing the IP address of the server
+ * port: an int representing the port of the server
+ * 
+ * returns: a file descriptor to the socket for server communication
+ */ 
 int login(const char* ip, int port)
 {
     printf("\nConnecting to %s:%d...\n", ip, port);
@@ -312,7 +331,6 @@ int login(const char* ip, int port)
         printf("Server is at capacity. You have been placed into a queue...\n");
         eavesdrop(fd, &play_response);
     }
-    // free(play_response);
 
     printf("Please login.\n");
 
@@ -343,6 +361,12 @@ int login(const char* ip, int port)
     exit(1);
 }
 
+/**
+ * Program entrypoint. Takes the Minesweeper server IP address and port as
+ * arguments
+ * 
+ * Usage: ./client.o ip port
+ */
 int main(int argc, char* argv[])
 {
     if (argc != 3)
