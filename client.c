@@ -175,21 +175,19 @@ int option(int* x, int* y)
 
 int game(int fd)
 {
-    GameState_t gs; memset(&gs, 0, sizeof(GameState_t));
+    GameState_t gs = {0};
 
     spunk(fd, PLAY, "");
     recv_int(fd, &gs.remaining_mines);
 
     int protocol, x_pos, y_pos;
-    int gameover = 0;
+    bool gameover = false;
+    char* response;
 
     draw_field(&gs);
     while((protocol = option(&x_pos, &y_pos)) != QUIT)
     {
-        char* response;
-        char pos_request[50] = {0};
-        pos_request[0] = itoc(x_pos);
-        pos_request[1] = itoc(y_pos);
+        char pos_request[] = {itoc(x_pos), itoc(y_pos)};
         spunk(fd, protocol, pos_request);
         eavesdrop(fd, &response);
         switch (protocol)
@@ -216,9 +214,7 @@ int game(int fd)
                         gameover = true;
                     }
                     update_tile(&gs, response_x, response_y, response_char);
-                    free(response);
                     eavesdrop(fd, &response);
-
                 }
 
                 break;
@@ -232,7 +228,7 @@ int game(int fd)
             printf("You won!!!\n");
             return WIN;
         }
-        if (gameover == 1)
+        if (gameover)
         {
             printf("Game over!!!\n");
             return LOSE;
