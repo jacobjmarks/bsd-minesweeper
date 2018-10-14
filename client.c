@@ -178,9 +178,11 @@ int game(int sock)
                         gameover = true;
                     }
                     update_tile(&gs, response_x, response_y, response_char);
-                    free(response);    
+                    free(response);
                     eavesdrop(sock, &response);
+
                 }
+
                 break;
             case QUIT:
                 printf("Client protocol error! Consult programmers!");

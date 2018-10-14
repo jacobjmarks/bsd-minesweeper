@@ -14,47 +14,33 @@
 
 int send_int(int fd, int message)
 {
-    if (DEBUG)
-        printf("send int: %d\n", message);
-    int thing = htons(message);
-    return write(fd, &thing, sizeof(int));
+    message = htons(message);
+    return write(fd, &message, sizeof(int));
 }
 
 int recv_int(int fd, int* response)
 {
-    if (read(fd, response, sizeof(response)) <= 0)
+    if (read(fd, response, sizeof(int)) <= 0)
     {
         return 0;
     }
-    else
-    {
-        *response = ntohs(*response);
-        if (DEBUG)
-            printf("recv int: %d\n", *response);
-        return 1;
-    }
+    *response = ntohs(*response);
+    return 1;
 }
 
 int send_string(int fd, char* message)
 {
-    // return send_int(fd, strlen(message)) && write(fd, message, strlen(message));
     send_int(fd, strlen(message));
-     if (DEBUG)
-        printf("send string: '%s'\n", message);
     return write(fd, message, strlen(message));
 }
 
 int recv_string(int fd, char** response)
 {
     int length;
-    if (recv_int(fd, &length))
+    if (recv_int(fd, &length) <= 0)
     {
-        *response = calloc(length, sizeof(char));
-        read(fd, *response, sizeof(*response));
-        if (DEBUG)
-            printf("recv string: '%s' (len %d)\n", *response, (int)strlen(*response));
-        return 1;
+        return 0;
     }
-    // return strdup("");
-    return 0;
+    *response = calloc(length, sizeof(char));
+    return read(fd, *response, length);
 }
