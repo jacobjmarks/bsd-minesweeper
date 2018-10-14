@@ -148,6 +148,7 @@ int option(int* x, int* y)
 {
     char option, position[2];
 
+    // Get option (place flag, reveal flag, or quit)
     do
     {
         printf("Select option <P, R, Q>: ");
@@ -160,6 +161,7 @@ int option(int* x, int* y)
         }
     } while (!(option == 'P' || option == 'R') || isalpha(option) == 0);
 
+    // Get position request if user didn't quit
     do
     {
         printf("Select position: ");
@@ -183,26 +185,36 @@ int game(int fd)
 {
     GameState_t gs = {0};
 
+    // Tell the server the user has requested to play
     spunk(fd, PLAY, "");
+    // Get the initial mine count
     recv_int(fd, &gs.remaining_mines);
 
     int protocol, x_pos, y_pos;
     bool gameover = false;
     char* response;
-
     draw_field(&gs);
+    
+    // Query next move until user quits
     while((protocol = option(&x_pos, &y_pos)) != QUIT)
     {
+        // Tell the server the user's move
         char pos_request[] = {itoc(x_pos), itoc(y_pos)};
         spunk(fd, protocol, pos_request);
+        
+        // Get the first response from the server. Interpret the
+        // response differently based on whether the user flagged
+        // or revealed.
         eavesdrop(fd, &response);
         switch (protocol)
         {
             case FLAG_TILE:
+                // There was no mine 
                 if(response[0] == TERMINATOR)
                 {
                     printf("\nNo mine at that position!\n");
                 }
+                // User correctly flagged a mine
                 else
                 {
                     gs.remaining_mines = ctoi(response[0]);
@@ -210,11 +222,13 @@ int game(int fd)
                 }
                 break;
             case REVEAL_TILE:
+                // Reveal all tiles the server sends back
                 while(response[0] != TERMINATOR)
                 {
                     char response_x = ctoi(response[0]);
                     char response_y = ctoi(response[1]);
                     char response_char = response[2];
+                    // Game is over if the server sends a mine.
                     if(response_char == MINE)
                     {
                         gameover = true;
@@ -300,22 +314,24 @@ int login(const char* ip, int port)
     struct sockaddr_in serv_addr; 
     int fd;
 
+    // Setup a socket to be used for connection
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     {
         printf("\nSocket creation error.\n");
         exit(1);
     }
 
+    // Construct server information based on ip and port
     memset(&serv_addr, '0', sizeof(serv_addr)); 
     serv_addr.sin_family = AF_INET; 
     serv_addr.sin_port = htons(port); 
-       
     if(inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0)  
     {
         printf("\nInvalid address or address not supported.\n"); 
         exit(1);
     }
 
+    // Connect to the server
     if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
     {
         printf("\nConnection failed.\n");
@@ -324,6 +340,7 @@ int login(const char* ip, int port)
 
     printf("Connection established.\n");
 
+    // Wait in queue until server is not busy
     char* play_response;
     eavesdrop(fd, &play_response);
     if (ctoi(play_response[0]) != PLAY)
@@ -332,24 +349,23 @@ int login(const char* ip, int port)
         eavesdrop(fd, &play_response);
     }
 
+    // Request login credentials from user
     printf("Please login.\n");
-
     char username[10];
     char password[10];
-
     printf("Enter your username: ");
     scanf(" %10s", username);  
     printf("Enter your password: ");
     scanf(" %10s", password);
-
     char credentials[22];
     sprintf(credentials,"%s:%s", username, password);
     
+    // Send login credentials to server
     spunk(fd, LOGIN, credentials);
 
+    // Continue to main menu if server authenticated the credentials
     char* response;
     eavesdrop(fd, &response);
-
     if (atoi(response))
     {
         free(response);
@@ -380,6 +396,7 @@ int main(int argc, char* argv[])
     int fd = login(ip, port);
        
     int selection;
+    // Present main menu to client until they quit (menu option 3)
     do
     {
         printf
@@ -397,9 +414,11 @@ int main(int argc, char* argv[])
 
         switch (selection)
         {
+            // Play (menu option 1)
             case 1:
                 game(fd);
                 break;
+            // Leaderboard (menu option 2)
             case 2:
                 leaderboard(fd);
                 break;
@@ -407,6 +426,5 @@ int main(int argc, char* argv[])
     } while (selection != 3);
     
     printf("\nThanks for playing!\n");
-
     return 0;
 }
