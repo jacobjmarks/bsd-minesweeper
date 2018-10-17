@@ -26,6 +26,8 @@ static volatile bool listening = true;
 ClientQueue_t* client_queue;
 int busy_threads = 0;
 
+int served_clients[NUM_CLIENT_THREADS];
+
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t is_new_client = PTHREAD_COND_INITIALIZER;
 
@@ -79,14 +81,19 @@ void* handle_client_queue(void* data) {
 
     while(listening) {
         if (client_queue) {
-            busy_threads++;
             int fd = get_client();
+            if (!fd) continue;
+
+            busy_threads++;
+            served_clients[tid] = fd;
+
             ClientSession_t* session = create_client_session(tid, fd);
 
             pthread_mutex_unlock(&mutex);
             if (session) serve_client(session);
             pthread_mutex_lock(&mutex);
-            
+
+            served_clients[tid] = 0;            
             busy_threads--;
         } else {
             pthread_cond_wait(&is_new_client, &mutex);
@@ -104,6 +111,11 @@ void* handle_client_queue(void* data) {
 void stop_listening() {
     listening = false;
     pthread_cond_broadcast(&is_new_client); // Signal waiting threads
+
+    int client_fd;
+    for (int i = 0; i < NUM_CLIENT_THREADS; i++) {
+        if ((client_fd = served_clients[i])) shutdown(client_fd, SHUT_RDWR);
+    }
 }
 
 /* -------------------------------- PRIVATE --------------------------------- */
