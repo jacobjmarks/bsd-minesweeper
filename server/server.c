@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 
 #include "clients.h"
+#include "server.h"
 
 static volatile bool running = true;
 static int server_fd;
@@ -31,16 +32,15 @@ void on_interupt(int);
  * port to use for the BSD server.
  */
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: ./server.o PORT\n");
+    signal(SIGINT, on_interupt);    
+    srand(time(NULL));
+
+    int port = (argc == 2) ? atoi(argv[1]) : DEFAULT_PORT;
+    if (!port) {
+        printf("Error: Invalid port\n");
         return EXIT_FAILURE;
     }
 
-    signal(SIGINT, on_interupt);
-    
-    srand(time(NULL));
-
-    int port = atoi(argv[1]);
     server_fd = init_server(port);
 
     int tids[NUM_CLIENT_THREADS];
