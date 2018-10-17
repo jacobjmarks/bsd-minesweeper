@@ -44,11 +44,11 @@ void play_game(ClientSession_t* session) {
 
     printf("Sending initial mine count of %d...\n",
         session->gamestate->mines_remaining);
-    send_int(session->sock, session->gamestate->mines_remaining);
+    send_int(session->fd, session->gamestate->mines_remaining);
 
     while (!session->gamestate->game_over) {
         char* request;
-        if (recv_string(session->sock, &request) <= 0) {
+        if (recv_string(session->fd, &request) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             free(session->gamestate);
             break;
@@ -79,7 +79,7 @@ void play_game(ClientSession_t* session) {
 /**
  * Streams all leaderboard entries to the provided socket.
  */
-void stream_leaderboard(int sock) {
+void stream_leaderboard(int fd) {
     HighScore_t* score = leaderboard;
 
     while (score != NULL) {
@@ -92,11 +92,11 @@ void stream_leaderboard(int sock) {
         );
 
         printf("Responding: %s\n", response);
-        send_string(sock, response);
+        send_string(fd, response);
         score = score->next;
     }
 
-    send_terminator(sock);
+    send_terminator(fd);
 }
 
 /**
@@ -196,7 +196,7 @@ void reveal_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     Tile_t* tile = &session->gamestate->tiles[pos_x][pos_y];
 
-    if (tile->revealed) return send_terminator(session->sock);
+    if (tile->revealed) return send_terminator(session->fd);
     if (tile->is_mine) return lose_game(session);
 
     reveal_and_traverse(pos_x, pos_y, session->gamestate);
@@ -249,13 +249,13 @@ void stream_tiles(ClientSession_t* session) {
                 response[1] = itoc(y);
                 response[2] = itoc(tile->adjacent_mines);
                 printf("Responding: %s\n", response);
-                send_string(session->sock, response);
+                send_string(session->fd, response);
                 tile->sent = true;
             }
         }
     }
 
-    send_terminator(session->sock);
+    send_terminator(session->fd);
 }
 
 /**
@@ -268,14 +268,14 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     Tile_t* tile = &session->gamestate->tiles[pos_x][pos_y];
 
-    if (!tile->is_mine) return send_terminator(session->sock);
+    if (!tile->is_mine) return send_terminator(session->fd);
 
     tile->revealed = true;
 
     char response[PACKET_SIZE] = {0};
     response[0] = itoc(--session->gamestate->mines_remaining);
     printf("Responding: %s\n", response);
-    send_string(session->sock, response);
+    send_string(session->fd, response);
 
     tile->sent = true;
     
@@ -305,13 +305,13 @@ void lose_game(ClientSession_t* session) {
                 response[1] = itoc(y);
                 response[2] = '*';
                 printf("Responding: %s\n", response);
-                send_string(session->sock, response);
+                send_string(session->fd, response);
                 tile->sent = true;
             }
         }
     }
 
-    send_terminator(session->sock);
+    send_terminator(session->fd);
 
     session->gamestate->game_over = true;
 }
@@ -320,9 +320,9 @@ void lose_game(ClientSession_t* session) {
  * Sends a terminator signal to the given socket. Primarily used to indicate the
  * end of a stream of data.
  */
-void send_terminator(int sock) {
+void send_terminator(int fd) {
     char message[PACKET_SIZE] = {0};
     message[0] = TERMINATOR;
     printf("Sending terminator\n");
-    send_string(sock, message);
+    send_string(fd, message);
 }

@@ -28,12 +28,12 @@ bool authenticate(char*, char*);
  * 
  * Returns 1 if there was an issue completing the process, 0 otherwise.
  */
-int client_login(int sock, char* user) {
+int client_login(int fd, char* user) {
     bool authenticated = false;
 
     while (!authenticated) {
         char* request;
-        if (recv_string(sock, &request) <= 0) {
+        if (recv_string(fd, &request) <= 0) {
             printf("Closing connection: Error connecting to client.\n");
             return 1;
         }
@@ -67,7 +67,7 @@ int client_login(int sock, char* user) {
         char response[PACKET_SIZE] = {0};
         strcat(response, authenticated ? "1" : "0");
         printf("Responding: %s\n", response);
-        send_string(sock, response);
+        send_string(fd, response);
     }
 
     return strlen(user) ? 0 : 1;

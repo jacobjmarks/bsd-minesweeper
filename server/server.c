@@ -43,16 +43,16 @@ int main(int argc, char* argv[]) {
         pthread_create(&pthreads[i], NULL, handle_client_queue, &tids[i]);
     }
 
-    int sock;
+    int socket_fd;
 
     while (1) {
         printf("Waiting for socket connection...\n");
-        if ((sock = accept(server_fd, NULL, NULL)) < 0) {
+        if ((socket_fd = accept(server_fd, NULL, NULL)) < 0) {
             perror("accept");
             exit(EXIT_FAILURE);
         } else {
             printf("Adding client to queue\n");
-            queue_client(sock);
+            queue_client(socket_fd);
         }
     }
 

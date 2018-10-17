@@ -38,12 +38,12 @@ void serve_client(ClientSession_t*);
  * Adds a new entry in the ClientQueue with the given socket. If all threads are
  * busy, the client will be marked as waiting.
  */
-void queue_client(int sock) {
+void queue_client(int fd) {
     ClientQueue_t* new_client;
 
     if (!client_queue) {
         client_queue = calloc(1, sizeof(ClientQueue_t));
-        client_queue->sock = sock;
+        client_queue->fd = fd;
         new_client = client_queue;
     } else {
         ClientQueue_t* client = client_queue;
@@ -51,7 +51,7 @@ void queue_client(int sock) {
             client = client->next;
         }
         client->next = calloc(1, sizeof(ClientQueue_t));
-        client->next->sock = sock;
+        client->next->fd = fd;
         new_client = client->next;
     }
 
@@ -61,7 +61,7 @@ void queue_client(int sock) {
     char message[PACKET_SIZE] = {0};
     message[0] = itoc(needs_to_wait ? QUEUED : PLAY);
     printf("Thread available: %s\n", needs_to_wait ? "NO" : "YES");
-    send_string(sock, message);
+    send_string(fd, message);
 
     pthread_cond_signal(&is_new_client);
 }
@@ -79,8 +79,8 @@ void* handle_client_queue(void* data) {
     while(true) {
         if (client_queue) {
             busy_threads++;
-            int sock = get_client();
-            ClientSession_t* session = create_client_session(tid, sock);
+            int fd = get_client();
+            ClientSession_t* session = create_client_session(tid, fd);
 
             pthread_mutex_unlock(&mutex);
             if (session) serve_client(session);
@@ -104,18 +104,18 @@ int get_client() {
     if (client_queue) {
         ClientQueue_t* client = client_queue;
         client_queue = client_queue->next;
-        int sock = client->sock;
+        int fd = client->fd;
 
         if (client->waiting) {
             // Notify client no longer needs to wait
             char message[PACKET_SIZE] = {0};
             message[0] = itoc(PLAY);
             printf("Notifying waiting client...\n");
-            send_string(sock, message);
+            send_string(fd, message);
         }
 
         free(client);
-        return sock;
+        return fd;
     }
 
     return 0;
@@ -126,15 +126,15 @@ int get_client() {
  * 
  * Returns a pointer to the created struct.
  */
-ClientSession_t* create_client_session(int tid, int sock) {
+ClientSession_t* create_client_session(int tid, int fd) {
     char user[32];
 
-    if (client_login(sock, user) != 0) return NULL;
+    if (client_login(fd, user) != 0) return NULL;
 
     ClientSession_t* session = calloc(1, sizeof(ClientSession_t));
     strcpy(session->user, user);
     session->tid = tid;
-    session->sock = sock;
+    session->fd = fd;
     session->score = get_highscore(session->user);
 
     return session;
@@ -150,7 +150,7 @@ void serve_client(ClientSession_t* session) {
 
     while (true) {
         char* request;
-        if (recv_string(session->sock, &request) <= 0) {
+        if (recv_string(session->fd, &request) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
         }
@@ -162,7 +162,7 @@ void serve_client(ClientSession_t* session) {
                 play_game(session);
                 break;
             case LEADERBOARD:
-                stream_leaderboard(session->sock);
+                stream_leaderboard(session->fd);
                 break;
             case QUIT:
                 return;

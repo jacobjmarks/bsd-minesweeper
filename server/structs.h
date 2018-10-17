@@ -28,14 +28,14 @@ typedef struct HighScore {
 
 typedef struct ClientSession {
     int tid;
-    int sock;
+    int fd;
     char user[32];
     HighScore_t* score;
     GameState_t* gamestate;
 } ClientSession_t;
 
 typedef struct ClientQueue {
-    int sock;
+    int fd;
     bool waiting;
     struct ClientQueue* next;
 } ClientQueue_t;
