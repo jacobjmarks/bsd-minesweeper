@@ -4,7 +4,6 @@
 #define NUM_TILES_X 9
 #define NUM_TILES_Y 9
 
-#define PACKET_SIZE 100
 #define TERMINATOR 'T'
 
 #define ctoi(c) (c-'0')

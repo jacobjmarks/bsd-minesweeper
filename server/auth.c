@@ -46,8 +46,8 @@ int client_login(int fd, char* user) {
         printf("    Message:  %s\n", request + 1);
         printf("}\n");
 
-        char credentials[PACKET_SIZE];
-        strncpy(credentials, request + 1, strlen(request));
+        char credentials[strlen(request)];
+        strncpy(credentials, request + 1, strlen(request) - 1);
 
         char* input_user = strtok(credentials, ":");
         char* input_pass = strtok(NULL, "\n");
@@ -55,17 +55,16 @@ int client_login(int fd, char* user) {
         if (input_user != NULL && input_pass != NULL) {
             printf("Authenticating %s:%s...", input_user, input_pass);
             if ((authenticated = authenticate(input_user, input_pass))) {
-                printf("  Granted");
+                printf("  Granted\n");
                 strcpy(user, input_user);
             } else {
-                printf("  Denied");
+                printf("  Denied\n");
             }
         } else {
             printf("Error parsing credentials.\n");
         }
         
-        char response[PACKET_SIZE] = {0};
-        strcat(response, authenticated ? "1" : "0");
+        char response[2] = { authenticated ? '1' : '0' };
         printf("Responding: %s\n", response);
         send_string(fd, response);
     }

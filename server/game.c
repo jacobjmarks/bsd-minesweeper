@@ -83,7 +83,7 @@ void stream_leaderboard(int fd) {
     HighScore_t* score = leaderboard;
 
     while (score != NULL) {
-        char response[PACKET_SIZE] = {0};
+        char response[48];
         sprintf(response, "%s,%d,%d,%d",
             score->user,
             score->best_time,
@@ -244,10 +244,8 @@ void stream_tiles(ClientSession_t* session) {
         for (int x = 0; x < NUM_TILES_X; x++) {
             Tile_t* tile = &session->gamestate->tiles[x][y];
             if (!tile->is_mine && tile->revealed && !tile->sent) {
-                char response[PACKET_SIZE] = {0};
-                response[0] = itoc(x);
-                response[1] = itoc(y);
-                response[2] = itoc(tile->adjacent_mines);
+                char response[4];
+                sprintf(response, "%d%d%d", x, y, tile->adjacent_mines);
                 printf("Responding: %s\n", response);
                 send_string(session->fd, response);
                 tile->sent = true;
@@ -272,8 +270,7 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     tile->revealed = true;
 
-    char response[PACKET_SIZE] = {0};
-    response[0] = itoc(--session->gamestate->mines_remaining);
+    char response[2] = { itoc(--session->gamestate->mines_remaining) };
     printf("Responding: %s\n", response);
     send_string(session->fd, response);
 
@@ -300,10 +297,8 @@ void lose_game(ClientSession_t* session) {
         for (int x = 0; x < NUM_TILES_X; x++) {
             Tile_t* tile = &session->gamestate->tiles[x][y];
             if (tile->is_mine) {
-                char response[PACKET_SIZE] = {0};
-                response[0] = itoc(x);
-                response[1] = itoc(y);
-                response[2] = '*';
+                char response[4];
+                sprintf(response, "%d%d%c", x, y, '*');
                 printf("Responding: %s\n", response);
                 send_string(session->fd, response);
                 tile->sent = true;
@@ -321,8 +316,7 @@ void lose_game(ClientSession_t* session) {
  * end of a stream of data.
  */
 void send_terminator(int fd) {
-    char message[PACKET_SIZE] = {0};
-    message[0] = TERMINATOR;
+    char message = TERMINATOR;
     printf("Sending terminator\n");
-    send_string(fd, message);
+    send_string(fd, &message);
 }
