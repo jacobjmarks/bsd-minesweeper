@@ -3,7 +3,8 @@
 
 #define NUM_CLIENT_THREADS 10
 
-void* handle_client_queue(void*);
 void queue_client(int);
+void* handle_client_queue(void*);
+void stop_listening();
 
 #endif

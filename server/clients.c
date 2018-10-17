@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <pthread.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -19,6 +20,8 @@
 #include "auth.h"
 #include "game.h"
 #include "clients.h"
+
+static volatile bool listening = true;
 
 ClientQueue_t* client_queue;
 int busy_threads = 0;
@@ -71,11 +74,10 @@ void queue_client(int fd) {
  */
 void* handle_client_queue(void* data) {
     int tid = *(int*)data;
-    printf("TID: %d\n", tid);
 
     pthread_mutex_lock(&mutex);
 
-    while(true) {
+    while(listening) {
         if (client_queue) {
             busy_threads++;
             int fd = get_client();
@@ -90,6 +92,18 @@ void* handle_client_queue(void* data) {
             pthread_cond_wait(&is_new_client, &mutex);
         }
     }
+
+    pthread_mutex_unlock(&mutex);
+
+    return NULL;
+}
+
+/**
+ * Stop listening for client connections. Causes all threads to return.
+ */
+void stop_listening() {
+    listening = false;
+    pthread_cond_broadcast(&is_new_client); // Signal waiting threads
 }
 
 /* -------------------------------- PRIVATE --------------------------------- */
@@ -142,8 +156,6 @@ ClientSession_t* create_client_session(int tid, int fd) {
  * Serves the new client specified in the given ClientSession.
  */
 void serve_client(ClientSession_t* session) {
-    
-
     printf("T%d Listening...\n", session->tid);
 
     while (true) {

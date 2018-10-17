@@ -9,14 +9,20 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <signal.h>
 #include <pthread.h>
 #include <netinet/in.h>
 
 #include "clients.h"
 
+static volatile bool running = true;
+static int server_fd;
+
 /* -------------------------- FORWARD DECLARATIONS -------------------------- */
 
 int init_server(int);
+void on_interupt(int);
 
 /* -------------------------------- PUBLIC ---------------------------------- */
 
@@ -27,13 +33,15 @@ int init_server(int);
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: ./server.o PORT\n");
-        return 1;
+        return EXIT_FAILURE;
     }
+
+    signal(SIGINT, on_interupt);
     
     srand(time(NULL));
 
     int port = atoi(argv[1]);
-    int server_fd = init_server(port);
+    server_fd = init_server(port);
 
     int tids[NUM_CLIENT_THREADS];
     pthread_t pthreads[NUM_CLIENT_THREADS];
@@ -42,21 +50,25 @@ int main(int argc, char* argv[]) {
         tids[i] = i;
         pthread_create(&pthreads[i], NULL, handle_client_queue, &tids[i]);
     }
+    printf("%d client threads now available\n", NUM_CLIENT_THREADS);
 
     int socket_fd;
 
-    while (1) {
+    while (running) {
         printf("Waiting for socket connection...\n");
         if ((socket_fd = accept(server_fd, NULL, NULL)) < 0) {
-            perror("accept");
-            exit(EXIT_FAILURE);
+            break;
         } else {
             printf("Adding client to queue\n");
             queue_client(socket_fd);
         }
     }
 
-    return 0;
+    for (int i = 0; i < NUM_CLIENT_THREADS; i++) {
+        pthread_join(pthreads[i], NULL);
+    }
+
+    return EXIT_SUCCESS;
 }
 
 /* -------------------------------- PRIVATE --------------------------------- */
@@ -90,4 +102,14 @@ int init_server(int port) {
     }
 
     return server_fd;
+}
+
+/**
+ * Function run when an interupt signal is received.
+ */
+void on_interupt(int _) {
+    printf("\nShutting down...\n");
+    shutdown(server_fd, SHUT_RDWR);
+    stop_listening();
+    running = false;
 }
