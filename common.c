@@ -1,4 +1,4 @@
-/**
+/*******************************************************************************
  * commonc.c
  * 
  * Common functions used for server-client communication.

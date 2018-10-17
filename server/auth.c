@@ -1,4 +1,4 @@
-/**
+/*******************************************************************************
  * auth.c
  * 
  * Includes methods to handle the login requests of new clients.

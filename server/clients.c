@@ -1,4 +1,4 @@
-/**
+/*******************************************************************************
  * clients.c
  * 
  * Includes methods to handle the queueing and serving of incoming clients.
