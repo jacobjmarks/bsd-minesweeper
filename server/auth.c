@@ -47,13 +47,13 @@ int client_login(int fd, char* user) {
         printf("}\n");
 
         char credentials[strlen(request)];
-        strncpy(credentials, request + 1, strlen(request) - 1);
+        strncpy(credentials, request + 1, strlen(request));
 
         char* input_user = strtok(credentials, ":");
         char* input_pass = strtok(NULL, "\n");
 
         if (input_user != NULL && input_pass != NULL) {
-            printf("Authenticating %s:%s...", input_user, input_pass);
+            printf("Authenticating %s:%s ...\n", input_user, input_pass);
             if ((authenticated = authenticate(input_user, input_pass))) {
                 printf("  Granted\n");
                 strcpy(user, input_user);

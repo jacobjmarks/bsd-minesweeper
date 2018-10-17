@@ -317,7 +317,7 @@ void lose_game(ClientSession_t* session) {
  * end of a stream of data.
  */
 void send_terminator(int fd) {
-    char message = TERMINATOR;
+    char message[2] = { TERMINATOR };
     printf("Sending terminator\n");
-    send_string(fd, &message);
+    send_string(fd, message);
 }
