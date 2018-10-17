@@ -50,7 +50,6 @@ void play_game(ClientSession_t* session) {
         char* request;
         if (recv_string(session->fd, &request) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
-            free(session->gamestate);
             break;
         }
         int protocol = ctoi(request[0]);
@@ -74,6 +73,8 @@ void play_game(ClientSession_t* session) {
                 break;
         }
     }
+
+    free(session->gamestate);
 }
 
 /**

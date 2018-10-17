@@ -90,7 +90,10 @@ void* handle_client_queue(void* data) {
             ClientSession_t* session = create_client_session(tid, fd);
 
             pthread_mutex_unlock(&mutex);
-            if (session) serve_client(session);
+            if (session) {
+                serve_client(session);
+                free(session);
+            }
             pthread_mutex_lock(&mutex);
 
             served_clients[tid] = 0;            
