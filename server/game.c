@@ -42,18 +42,12 @@ void play_game(ClientSession_t* session) {
     session->gamestate->start_time = time(NULL);
     session->score->games_played++;
 
-    // char message[PACKET_SIZE] = {0};
-    // sprintf(message, "%d", session->gamestate->mines_remaining);
-    // printf("Indicating initial mine count of %s...\n", message);
-    // send(session->sock, &message, PACKET_SIZE, 0);
     printf("Sending initial mine count of %d...\n",
-            session->gamestate->mines_remaining);
+        session->gamestate->mines_remaining);
     send_int(session->sock, session->gamestate->mines_remaining);
 
     while (!session->gamestate->game_over) {
-        // char request[PACKET_SIZE];
         char* request;
-        // if (read(session->sock, request, PACKET_SIZE) <= 0) {
         if (recv_string(session->sock, &request) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             free(session->gamestate);
@@ -98,7 +92,6 @@ void stream_leaderboard(int sock) {
         );
 
         printf("Responding: %s\n", response);
-        // send(sock, &response, PACKET_SIZE, 0);
         send_string(sock, response);
         score = score->next;
     }
@@ -256,7 +249,6 @@ void stream_tiles(ClientSession_t* session) {
                 response[1] = itoc(y);
                 response[2] = itoc(tile->adjacent_mines);
                 printf("Responding: %s\n", response);
-                // send(session->sock, &response, PACKET_SIZE, 0);
                 send_string(session->sock, response);
                 tile->sent = true;
             }
@@ -283,7 +275,6 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
     char response[PACKET_SIZE] = {0};
     response[0] = itoc(--session->gamestate->mines_remaining);
     printf("Responding: %s\n", response);
-    // send(session->sock, &response, PACKET_SIZE, 0);
     send_string(session->sock, response);
 
     tile->sent = true;
@@ -314,7 +305,6 @@ void lose_game(ClientSession_t* session) {
                 response[1] = itoc(y);
                 response[2] = '*';
                 printf("Responding: %s\n", response);
-                // send(session->sock, &response, PACKET_SIZE, 0);
                 send_string(session->sock, response);
                 tile->sent = true;
             }
@@ -334,6 +324,5 @@ void send_terminator(int sock) {
     char message[PACKET_SIZE] = {0};
     message[0] = TERMINATOR;
     printf("Sending terminator\n");
-    // send(sock, &message, PACKET_SIZE, 0);
     send_string(sock, message);
 }
