@@ -271,8 +271,9 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     tile->revealed = true;
 
-    int new_mine_count = --session->gamestate->mines_remaining;
+    send_string(session->fd, "~");
 
+    int new_mine_count = --session->gamestate->mines_remaining;;
     printf("Responding: %d\n", new_mine_count);
     send_int(session->fd, new_mine_count);
 
