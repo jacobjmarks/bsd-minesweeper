@@ -86,6 +86,6 @@ int recv_string(int fd, char** response)
     {
         return bytes_read;
     }
-    *response = calloc(length, sizeof(char));
+    *response = calloc(length + 1, sizeof(char));
     return read(fd, *response, length);
 }
