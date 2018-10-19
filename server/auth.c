@@ -82,22 +82,43 @@ int client_login(int fd, char* user) {
 bool authenticate(char* user, char* pass) {
     bool authenticated = false;
 
-    FILE* auth_file = fopen("server/authentication.tsv", "r");
+    FILE* auth_file = fopen("server/Authentication.txt", "r");
 
     if (!auth_file) {
         fprintf(stderr, "ERROR READING AUTH FILE\n");
         return false;
     }
 
-    char line[255];
+    char stored_user[32];
+    char stored_pass[32];
+
+    char line[64];
     fgets(line, sizeof(line), auth_file); // Skip first line
     while (fgets(line, sizeof(line), auth_file) != NULL) {
-        bool user_match = strcmp(user, strtok(line, "\t")) == 0;
-        bool pass_match = strcmp(pass, strtok(NULL, "\n")) == 0;
-        if (user_match && pass_match) {
-            authenticated = true;
-            break;
+        memset(stored_user, 0, sizeof(stored_user));
+        memset(stored_pass, 0, sizeof(stored_pass));
+
+        int i = 0;
+        char c[2] = { line[i++] };
+
+        // Read user
+        while (c[0] == ' ' || c[0] == '\t') c[0] = line[i++];
+        while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != 0) {
+            strcat(stored_user, c);
+            c[0] = line[i++];
         }
+        if (!strlen(stored_user) || strcmp(user, stored_user)) continue;
+
+        // Read pass
+        while (c[0] == ' ' || c[0] == '\t') c[0] = line[i++];
+        while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != 0) {
+            strcat(stored_pass, c);
+            c[0] = line[i++];
+        }
+        if (!strlen(stored_pass) || strcmp(pass, stored_pass)) continue;
+
+        authenticated = true;
+        break;
     }
     fclose(auth_file);
 
