@@ -19,6 +19,7 @@
 /* -------------------------- FORWARD DECLARATIONS -------------------------- */
 
 bool authenticate(char*, char*);
+int extract_word(char*, char*);
 
 /* -------------------------------- PUBLIC ---------------------------------- */
 
@@ -89,33 +90,16 @@ bool authenticate(char* user, char* pass) {
         return false;
     }
 
-    char stored_user[32];
-    char stored_pass[32];
-
     char line[64];
     fgets(line, sizeof(line), auth_file); // Skip first line
     while (fgets(line, sizeof(line), auth_file) != NULL) {
-        memset(stored_user, 0, sizeof(stored_user));
-        memset(stored_pass, 0, sizeof(stored_pass));
+        char stored_user[32] = {0};
+        if (!extract_word(line, stored_user)) continue;
+        if (strcmp(user, stored_user)) continue;
 
-        int i = 0;
-        char c[2] = { line[i++] };
-
-        // Read user
-        while (c[0] == ' ' || c[0] == '\t') c[0] = line[i++];
-        while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != 0) {
-            strcat(stored_user, c);
-            c[0] = line[i++];
-        }
-        if (!strlen(stored_user) || strcmp(user, stored_user)) continue;
-
-        // Read pass
-        while (c[0] == ' ' || c[0] == '\t') c[0] = line[i++];
-        while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != 0) {
-            strcat(stored_pass, c);
-            c[0] = line[i++];
-        }
-        if (!strlen(stored_pass) || strcmp(pass, stored_pass)) continue;
+        char stored_pass[32] = {0};
+        if (!extract_word(line + strlen(stored_user), stored_pass)) continue;
+        if (strcmp(pass, stored_pass)) continue;
 
         authenticated = true;
         break;
@@ -123,4 +107,23 @@ bool authenticate(char* user, char* pass) {
     fclose(auth_file);
 
     return authenticated;
+}
+
+/**
+ * Extracts the first word found in the given source text. Concatenating the
+ * word onto the provided pointer. Ignores all leading whitespace.
+ * 
+ * Returns the length of the word found.
+ */
+int extract_word(char* text, char* word) {
+    int i = 0;
+    char c[2] = { text[i++] };
+
+    while (c[0] == ' ' || c[0] == '\t') c[0] = text[i++];
+    while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != 0) {
+        strcat(word, c);
+        c[0] = text[i++];
+    }
+
+    return strlen(word);
 }
