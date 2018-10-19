@@ -271,9 +271,10 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     tile->revealed = true;
 
-    char response[2] = { itoc(--session->gamestate->mines_remaining) };
-    printf("Responding: %s\n", response);
-    send_string(session->fd, response);
+    int new_mine_count = --session->gamestate->mines_remaining;
+
+    printf("Responding: %d\n", new_mine_count);
+    send_int(session->fd, new_mine_count);
 
     tile->sent = true;
     

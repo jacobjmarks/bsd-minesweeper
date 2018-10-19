@@ -63,9 +63,8 @@ void queue_client(int fd) {
     bool needs_to_wait = busy_threads == NUM_CLIENT_THREADS;
     if (needs_to_wait) new_client->waiting = true;
 
-    char message[2] = { itoc(needs_to_wait ? QUEUED : PLAY) };
     printf("Thread available: %s\n", needs_to_wait ? "NO" : "YES");
-    send_string(fd, message);
+    send_int(fd, needs_to_wait ? QUEUED : PLAY);
 
     pthread_cond_signal(&is_new_client);
 }
@@ -137,9 +136,8 @@ int get_client() {
 
         if (client->waiting) {
             // Notify client no longer needs to wait
-            char message[2] = { itoc(PLAY) };
             printf("Notifying waiting client...\n");
-            send_string(fd, message);
+            send_int(fd, PLAY);
         }
 
         free(client);

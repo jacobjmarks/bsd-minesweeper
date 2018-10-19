@@ -64,9 +64,8 @@ int client_login(int fd, char* user) {
             printf("Error parsing credentials.\n");
         }
         
-        char response[2] = { authenticated ? '1' : '0' };
-        printf("Responding: %s\n", response);
-        send_string(fd, response);
+        printf("Responding: %d\n", authenticated);
+        send_int(fd, authenticated);
     }
 
     return strlen(user) ? 0 : 1;
