@@ -217,7 +217,8 @@ int game(int fd)
                 // User correctly flagged a mine
                 else
                 {
-                    gs.remaining_mines = ctoi(response[0]);
+                    // gs.remaining_mines = ctoi(response[0]);
+                    recv_int(fd, &(gs.remaining_mines));
                     update_tile(&gs, x_pos, y_pos, FLAG);
                 }
                 break;
@@ -279,6 +280,8 @@ void leaderboard(int fd)
         );
     }
         
+    // Sort in descending order of time
+
     while(response[0] != TERMINATOR)
     {
         char *name = strtok(response, DELIM);
@@ -341,12 +344,12 @@ int login(const char* ip, int port)
     printf("Connection established.\n");
 
     // Wait in queue until server is not busy
-    char* play_response;
-    eavesdrop(fd, &play_response);
-    if (ctoi(play_response[0]) != PLAY)
+    uint32_t play_response;
+    recv_int(fd, &play_response);
+    if (play_response != PLAY)
     {
         printf("Server is at capacity. You have been placed into a queue...\n");
-        eavesdrop(fd, &play_response);
+        recv_int(fd, &play_response);
     }
 
     // Request login credentials from user
@@ -364,15 +367,13 @@ int login(const char* ip, int port)
     spunk(fd, LOGIN, credentials);
 
     // Continue to main menu if server authenticated the credentials
-    char* response;
-    eavesdrop(fd, &response);
-    if (atoi(response))
+    uint32_t response;
+    recv_int(fd, &response);
+    if (response)
     {
-        free(response);
         return fd;
     }
     
-    free(response);
     printf("Login failure.\n");
     exit(1);
 }
