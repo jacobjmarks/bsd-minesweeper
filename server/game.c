@@ -18,6 +18,7 @@
 #include "game.h"
 
 HighScore_t* leaderboard;
+int leaderboard_size = 0;
 
 /* -------------------------- FORWARD DECLARATIONS -------------------------- */
 
@@ -81,23 +82,22 @@ void play_game(ClientSession_t* session) {
  * Streams all leaderboard entries to the provided socket.
  */
 void stream_leaderboard(int fd) {
-    HighScore_t* score = leaderboard;
+    send_int(fd, leaderboard_size);
 
+    HighScore_t* score = leaderboard;
     while (score != NULL) {
-        char response[48];
-        sprintf(response, "%s,%d,%d,%d",
+        char message[48];
+        sprintf(message, "%s,%d,%d,%d",
             score->user,
             score->best_time,
             score->games_won,
             score->games_played
         );
 
-        printf("Responding: %s\n", response);
-        send_string(fd, response);
+        printf("Responding: %s\n", message);
+        send_string(fd, message);
         score = score->next;
     }
-
-    send_terminator(fd);
 }
 
 /**
@@ -111,6 +111,7 @@ HighScore_t* get_highscore(char* user) {
         leaderboard = calloc(1, sizeof(HighScore_t));
         strcpy(leaderboard->user, user);
         leaderboard->best_time = 999;
+        leaderboard_size++;
         return leaderboard;
     }
 
@@ -129,6 +130,7 @@ HighScore_t* get_highscore(char* user) {
     score = calloc(1, sizeof(HighScore_t));
     strcpy(score->user, user);
     score->best_time = 999;
+    leaderboard_size++;
 
     return previous->next = score;
 }
