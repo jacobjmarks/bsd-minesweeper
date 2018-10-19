@@ -217,8 +217,7 @@ int game(int fd)
                 // User correctly flagged a mine
                 else
                 {
-                    // gs.remaining_mines = ctoi(response[0]);
-                    recv_int(fd, &(gs.remaining_mines));
+                    recv_int(fd, &gs.remaining_mines);
                     update_tile(&gs, x_pos, y_pos, FLAG);
                 }
                 break;
