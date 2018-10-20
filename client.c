@@ -268,9 +268,20 @@ int game(int fd)
 
 
 
-int compare_highscores(const void* boy, const void* girl)
+int compare_highscores(const void* a, const void* b)
 {
-    return ((HighScore_t*)boy)->best_time - ((HighScore_t*)girl)->best_time;
+    // return ((HighScore_t*)a)->best_time - ((HighScore_t*)b)->best_time;
+    HighScore_t* a_cast = (HighScore_t*)a;
+    HighScore_t* b_cast = (HighScore_t*)b;
+    if (a_cast->best_time > b_cast->best_time)
+    {
+        return -1;
+    }
+    else if (a_cast->best_time < b_cast->best_time)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 /**
@@ -296,35 +307,28 @@ void leaderboard(int fd)
     }
 
 
-    HighScore_t calquat[size];
+    HighScore_t* highscores = malloc(sizeof(HighScore_t) * size);
     char* response;
     for (int i = 0; i < size; i++)
     {
         eavesdrop(fd, &response);
-
-        char* name = strtok(response, DELIM);
-        int best_time = atoi(strtok(NULL, DELIM));
-        int games_won = atoi(strtok(NULL, DELIM));
-        int games_played = atoi(strtok(NULL, DELIM));
-        
-        calquat[i].name = name;
-        calquat[i].best_time = best_time;
-        calquat[i].games_won = games_won;
-        calquat[i].games_played = games_played; 
-
-    }         
+        highscores[i].name = strtok(response, DELIM);;
+        highscores[i].best_time = atoi(strtok(NULL, DELIM));
+        highscores[i].games_won = atoi(strtok(NULL, DELIM));
+        highscores[i].games_played = atoi(strtok(NULL, DELIM));
+    }
 
     printf("============================================================\n");
 
-    qsort(calquat, size, sizeof(calquat), &compare_highscores);
+    qsort(highscores, size, sizeof(*highscores), &compare_highscores);
 
     for (int i = 0; i < size; i++)
     {
         printf("%s \t %d seconds \t %d games won, %d games played\n",
-                calquat[i].name,
-                calquat[i].best_time,
-                calquat[i].games_won,
-                calquat[i].games_played);
+                highscores[i].name,
+                highscores[i].best_time,
+                highscores[i].games_won,
+                highscores[i].games_played);
     }
 
     printf("============================================================\n");
