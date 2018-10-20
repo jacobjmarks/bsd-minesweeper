@@ -29,6 +29,14 @@ typedef struct GameState {
     uint32_t remaining_mines;
 } GameState_t;
 
+typedef struct HighScore {
+    char* name;
+    int best_time;
+    int games_won;
+    int games_played;
+} HighScore_t;
+
+
 /**
  * Receives the next string sent by the server. Gracefully terminates
  * the client if no connection could be made
@@ -258,6 +266,13 @@ int game(int fd)
     return QUIT;
 }
 
+
+
+int compare_highscores(const void* boy, const void* girl)
+{
+    return ((HighScore_t*)boy)->best_time - ((HighScore_t*)girl)->best_time;
+}
+
 /**
  * Gets and prints the server leaderboard
  * 
@@ -266,39 +281,55 @@ int game(int fd)
  */ 
 void leaderboard(int fd)
 {
-    printf("============================================================\n");
-
     spunk(fd, LEADERBOARD, "");   
-    char* response;
-    eavesdrop(fd, &response);
-    if (response[0] == TERMINATOR)
+
+    uint32_t size;
+    recv_int(fd, &size);
+    if (size == 0)
     {
         printf(
+            "============================================================\n"
             "There is no information currently stored in the leaderboard."
             "Try again later.\n"
+            "============================================================\n"
         );
     }
-        
-    // Sort in descending order of time
 
-    while(response[0] != TERMINATOR)
+
+    HighScore_t calquat[size];
+    char* response;
+    for (int i = 0; i < size; i++)
     {
-        char *name = strtok(response, DELIM);
-        char *seconds = strtok(NULL, DELIM);
-        char *games_won = strtok(NULL, DELIM);
-        char *games_played = strtok(NULL, DELIM);
-        
-        printf("%s \t %s seconds \t %s games won, %s games played\n",
-                name,
-                seconds,
-                games_won,
-                games_played);
         eavesdrop(fd, &response);
-    }            
 
-    free(response);
+        char* name = strtok(response, DELIM);
+        int best_time = atoi(strtok(NULL, DELIM));
+        int games_won = atoi(strtok(NULL, DELIM));
+        int games_played = atoi(strtok(NULL, DELIM));
+        
+        calquat[i].name = name;
+        calquat[i].best_time = best_time;
+        calquat[i].games_won = games_won;
+        calquat[i].games_played = games_played; 
+
+    }         
 
     printf("============================================================\n");
+
+    qsort(calquat, size, sizeof(calquat), &compare_highscores);
+
+    for (int i = 0; i < size; i++)
+    {
+        printf("%s \t %d seconds \t %d games won, %d games played\n",
+                calquat[i].name,
+                calquat[i].best_time,
+                calquat[i].games_won,
+                calquat[i].games_played);
+    }
+
+    printf("============================================================\n");
+
+    free(response);
 }
 
 /**
