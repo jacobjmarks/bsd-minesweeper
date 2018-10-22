@@ -230,9 +230,9 @@ int option(int* x, int* y)
 int game(int fd)
 {
     GameState_t gs = {0};
-
-    // Tell the server the user has requested to play
-    send_string_check(fd, PLAY, "");
+    
+    // Request to play game
+    send_int_check(fd, PLAY);
     // Get the initial mine count
     recv_int_check(fd, &gs.remaining_mines);
 
@@ -331,10 +331,13 @@ int compare_highscores(const void* a, const void* b)
 void leaderboard(int fd)
 {
     // Request leaderboard from server
-    send_string_check(fd, LEADERBOARD, "");   
+    send_int_check(fd, LEADERBOARD);   
 
+    // Get leaderboard size from server
     uint32_t size;
     recv_int_check(fd, &size);
+
+    // If leaderboard is empty, tell the user
     if (size == 0)
     {
         printf(
@@ -345,7 +348,7 @@ void leaderboard(int fd)
         );
     }
 
-
+    // Get an unordered list of highscores from the server
     HighScore_t* highscores = malloc(sizeof(HighScore_t) * size);
     char* response;
     for (int i = 0; i < size; i++)
@@ -356,11 +359,14 @@ void leaderboard(int fd)
         highscores[i].games_won = atoi(strtok(NULL, DELIM));
         highscores[i].games_played = atoi(strtok(NULL, DELIM));
     }
+    // Cleanup
+    free(response);
 
-    printf("============================================================\n");
-
+    // Sort the highscores in ascending order of best time
     qsort(highscores, size, sizeof(*highscores), &compare_highscores);
 
+    // Print the ordered high scores
+    printf("============================================================\n");
     for (int i = 0; i < size; i++)
     {
         printf("%s \t %d seconds \t %d games won, %d games played\n",
@@ -369,10 +375,10 @@ void leaderboard(int fd)
                 highscores[i].games_won,
                 highscores[i].games_played);
     }
-
     printf("============================================================\n");
 
-    free(response);
+    // Cleanup
+    free(highscores);
 }
 
 /**
@@ -498,7 +504,9 @@ int main(int argc, char* argv[])
                 break;
         }
     } while (selection != 3);
-    
+
+    // Tell user the client chose to quit
+    send_int_check(fd, QUIT);
     printf("\nThanks for playing!\n");
     return 0;
 }
