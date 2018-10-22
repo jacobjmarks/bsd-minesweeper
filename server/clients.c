@@ -173,7 +173,7 @@ void serve_client(ClientSession_t* session) {
     printf("T%d Listening...\n", session->tid);
 
     while (true) {
-        int menu_selection;
+        uint32_t menu_selection;
         if (recv_int(session->fd, &menu_selection) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
