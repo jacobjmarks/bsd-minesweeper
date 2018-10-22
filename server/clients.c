@@ -173,13 +173,11 @@ void serve_client(ClientSession_t* session) {
     printf("T%d Listening...\n", session->tid);
 
     while (true) {
-        char* request;
-        if (recv_string(session->fd, &request) <= 0) {
+        int menu_selection;
+        if (recv_int(session->fd, &menu_selection) <= 0) {
             printf("T%d exiting: Error connecting to client.\n", session->tid);
             break;
         }
-        
-        int menu_selection = ctoi(request[0]);
 
         switch(menu_selection) {
             case PLAY:
