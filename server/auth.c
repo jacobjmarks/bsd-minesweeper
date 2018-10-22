@@ -120,7 +120,7 @@ int extract_word(char* text, char* word) {
     char c[2] = { text[i++] };
 
     while (c[0] == ' ' || c[0] == '\t') c[0] = text[i++];
-    while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != 0) {
+    while (c[0] != ' ' && c[0] != '\t' && c[0] != '\n' && c[0] != '\r' && c[0] != 0) {
         strcat(word, c);
         c[0] = text[i++];
     }
