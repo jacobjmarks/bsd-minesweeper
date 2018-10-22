@@ -36,6 +36,67 @@ typedef struct HighScore {
     int games_played;
 } HighScore_t;
 
+/**
+ * Reports a connection failure to the user and terminates the client.
+ */ 
+void connection_failure()
+{
+    printf("Connection failure.\n");
+    exit(1);
+}
+
+/**
+ * Sends an int to the server. Gracefully terminates the client
+ * if no connection could be made.
+ * 
+ * fd: the file descriptor for the socket.
+ * message: the int to be sent.
+ */ 
+void send_int_check(int fd, uint32_t message)
+{
+    if (send_int(fd, message) <= 0)
+    {
+        connection_failure();
+    }
+}
+
+/**
+ * Receives the next int sent by the server. Gracefully terminates the
+ * client if no connection could be made.
+ * 
+ * fd: the file descriptor for the socket.
+ * response: an int pointer that the response will be written to.
+ * 
+ */ 
+void recv_int_check(int fd, uint32_t* response)
+{
+    if (recv_int(fd, response) <= 0)
+    {
+        connection_failure();
+    }
+}
+
+/**
+ * Sends a string prepended by a protocol to the server. Gracefully terminates
+ * the client if no connection could be made/
+ * 
+ * fd: the file descriptor for the socket
+ * protocol: a single-digit between 1 and 9 inclusive specifying the type of
+ *           message that is being sent (see common.h)
+ * message: the string to be sent
+ */
+void send_string_check(int fd, int protocol, char* message)
+{
+    char* packet = calloc(strlen(message) + 1, sizeof(char));
+    packet[0] = itoc(protocol);
+    strcat(packet, message);
+    int bytes_sent = send_string(fd, packet);
+    free(packet);
+    if (bytes_sent <= 0)
+    {
+        connection_failure();
+    }
+}
 
 /**
  * Receives the next string sent by the server. Gracefully terminates
@@ -45,35 +106,12 @@ typedef struct HighScore {
  * response: a string pointer that the response will be written to (memory must
  * be freed by the calling function)
  */
-void eavesdrop(int fd, char** response)
+void recv_string_check(int fd, char** response)
 {
     if (recv_string(fd, response) <= 0)
     {
-        printf("Connection failure.\n");
-        exit(1);
+        connection_failure();
     }
-}
-
-/**
- * Sends a string prepended by a protocol to the server. Gracefully terminates
- * the client if no connection could be made
- * 
- * fd: the file descriptor for the socket
- * protocol: a single-digit between 1 and 9 inclusive specifying the type of
- *           message that is being sent (see common.h)
- * message: the string to be sent
- */
-void spunk(int fd, int protocol, char* message)
-{
-    char* packet = calloc(strlen(message) + 1, sizeof(char));
-    packet[0] = itoc(protocol);
-    strcat(packet, message);
-    if (send_string(fd, packet) <= 0)
-    {
-        printf("Connection failure.\n");
-        exit(1);
-    }
-    free(packet);
 }
 
 /**
@@ -194,9 +232,9 @@ int game(int fd)
     GameState_t gs = {0};
 
     // Tell the server the user has requested to play
-    spunk(fd, PLAY, "");
+    send_string_check(fd, PLAY, "");
     // Get the initial mine count
-    recv_int(fd, &gs.remaining_mines);
+    recv_int_check(fd, &gs.remaining_mines);
 
     int protocol, x_pos, y_pos;
     bool gameover = false;
@@ -208,12 +246,12 @@ int game(int fd)
     {
         // Tell the server the user's move
         char pos_request[] = {itoc(x_pos), itoc(y_pos)};
-        spunk(fd, protocol, pos_request);
+        send_string_check(fd, protocol, pos_request);
         
         // Get the first response from the server. Interpret the
         // response differently based on whether the user flagged
         // or revealed.
-        eavesdrop(fd, &response);
+        recv_string_check(fd, &response);
         switch (protocol)
         {
             case FLAG_TILE:
@@ -225,7 +263,7 @@ int game(int fd)
                 // User correctly flagged a mine
                 else
                 {
-                    recv_int(fd, &gs.remaining_mines);
+                    recv_int_check(fd, &gs.remaining_mines);
                     update_tile(&gs, x_pos, y_pos, FLAG);
                 }
                 break;
@@ -242,7 +280,7 @@ int game(int fd)
                         gameover = true;
                     }
                     update_tile(&gs, response_x, response_y, response_char);
-                    eavesdrop(fd, &response);
+                    recv_string_check(fd, &response);
                 }
 
                 break;
@@ -262,7 +300,7 @@ int game(int fd)
             return LOSE;
         }
     }
-    spunk(fd, QUIT, "");
+    send_string_check(fd, QUIT, "");
     return QUIT;
 }
 
@@ -292,10 +330,11 @@ int compare_highscores(const void* a, const void* b)
  */ 
 void leaderboard(int fd)
 {
-    spunk(fd, LEADERBOARD, "");   
+    // Request leaderboard from server
+    send_string_check(fd, LEADERBOARD, "");   
 
     uint32_t size;
-    recv_int(fd, &size);
+    recv_int_check(fd, &size);
     if (size == 0)
     {
         printf(
@@ -311,7 +350,7 @@ void leaderboard(int fd)
     char* response;
     for (int i = 0; i < size; i++)
     {
-        eavesdrop(fd, &response);
+        recv_string_check(fd, &response);
         highscores[i].name = strtok(response, DELIM);;
         highscores[i].best_time = atoi(strtok(NULL, DELIM));
         highscores[i].games_won = atoi(strtok(NULL, DELIM));
@@ -379,11 +418,11 @@ int login(const char* ip, int port)
 
     // Wait in queue until server is not busy
     uint32_t play_response;
-    recv_int(fd, &play_response);
+    recv_int_check(fd, &play_response);
     if (play_response != PLAY)
     {
         printf("Server is at capacity. You have been placed into a queue...\n");
-        recv_int(fd, &play_response);
+        recv_int_check(fd, &play_response);
     }
 
     // Request login credentials from user
@@ -398,11 +437,11 @@ int login(const char* ip, int port)
     sprintf(credentials,"%s:%s", username, password);
     
     // Send login credentials to server
-    spunk(fd, LOGIN, credentials);
+    send_string_check(fd, LOGIN, credentials);
 
     // Continue to main menu if server authenticated the credentials
     uint32_t response;
-    recv_int(fd, &response);
+    recv_int_check(fd, &response);
     if (response)
     {
         return fd;
