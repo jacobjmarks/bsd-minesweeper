@@ -305,17 +305,29 @@ int game(int fd)
 }
 
 
-
-int compare_highscores(const void* a, const void* b)
+/**
+ * Compares two high scores to determine their relative position with
+ * respect to descending order of the best time.
+ * 
+ * highscore_a: A pointer to a HighScore_t, to be compared against highscore_b.
+ * highscore_b: A pointer to a HighScore_t, to be compared against highscore_a.
+ * 
+ * returns: an int representing the ordering of highscore_a and highscore_b: 
+ * -1 if highscore_a comes before highscore_b in the sort order,
+ *  1 if highscore_a comes after  highscore_a in the sort order, or
+ *  0 if highscore_a is equal to  highscore_b in the sort order.
+ * 
+ */ 
+int compare_highscores(const void* highscore_a, const void* highscore_b)
 {
-    // return ((HighScore_t*)a)->best_time - ((HighScore_t*)b)->best_time;
-    HighScore_t* a_cast = (HighScore_t*)a;
-    HighScore_t* b_cast = (HighScore_t*)b;
-    if (a_cast->best_time > b_cast->best_time)
+    // return ((HighScore_t*)highscore_a)->best_time - ((HighScore_t*)highscore_b)->best_time;
+    HighScore_t* a = (HighScore_t*)highscore_a;
+    HighScore_t* b = (HighScore_t*)highscore_b;
+    if (a->best_time > b->best_time)
     {
         return -1;
     }
-    else if (a_cast->best_time < b_cast->best_time)
+    else if (a->best_time < b->best_time)
     {
         return 1;
     }
