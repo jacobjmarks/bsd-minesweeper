@@ -4,8 +4,7 @@
  * Client program for playing Minesweeper.
  * 
  * Author: Benjamin Saljooghi n9448233
- */
-
+ ******************************************************************************/
 
 #include <stdio.h> 
 #include <sys/socket.h> 
