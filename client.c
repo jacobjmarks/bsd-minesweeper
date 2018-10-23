@@ -305,21 +305,25 @@ int game(int fd)
 
 
 /**
- * Compares two high scores to determine their relative position with
- * respect to descending order of the best time.
+ * Compares two high scores to determine their relative position with respect
+ * to the following ordering (from the spec): 
+ * 
+ * Highs scores are displayed in descending order of the number of seconds each
+ * successful game took to complete. If two or more games have the same number
+ * of seconds then the game played by the player with the highest number of
+ * games won are displayed last. If two or more games were won in the
+ * same number of seconds by players with the same number of games won then
+ * display those games by the names of their players in alphabetical order.
  * 
  * highscore_a: A pointer to a HighScore_t, to be compared against highscore_b.
  * highscore_b: A pointer to a HighScore_t, to be compared against highscore_a.
  * 
- * returns: an int representing the ordering of highscore_a and highscore_b: 
- * -1 if highscore_a comes before highscore_b in the sort order,
- *  1 if highscore_a comes after  highscore_a in the sort order, or
- *  0 if highscore_a is equal to  highscore_b in the sort order.
+ * returns: an int representing the position of highscore_a relative to 
+ * highscore_b, with respect to the ordering described above.
  * 
  */ 
 int compare_highscores(const void* highscore_a, const void* highscore_b)
 {
-    // return ((HighScore_t*)highscore_a)->best_time - ((HighScore_t*)highscore_b)->best_time;
     HighScore_t* a = (HighScore_t*)highscore_a;
     HighScore_t* b = (HighScore_t*)highscore_b;
     if (a->best_time > b->best_time)
@@ -330,7 +334,17 @@ int compare_highscores(const void* highscore_a, const void* highscore_b)
     {
         return 1;
     }
-    return 0;
+    
+    if (a->games_won < b->games_won)
+    {
+        return -1;
+    }
+    else if (a->games_won > b->games_won)
+    {
+        return 1;
+    }
+
+    return strcmp(a->name, b->name);
 }
 
 /**
@@ -373,14 +387,14 @@ void leaderboard(int fd)
     // Cleanup
     free(response);
 
-    // Sort the highscores in ascending order of best time
+    // Sort the highscores
     qsort(highscores, size, sizeof(*highscores), &compare_highscores);
 
     // Print the ordered high scores
     printf("============================================================\n");
     for (int i = 0; i < size; i++)
     {
-        printf("%s \t %d seconds \t %d games won, %d games played\n",
+        printf("%-10s \t %10d seconds \t %d games won, %d games played\n",
                 highscores[i].name,
                 highscores[i].best_time,
                 highscores[i].games_won,
