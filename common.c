@@ -17,7 +17,7 @@
 #include "common.h"
 
 /**
- * Sends an int via the socket at the given file descriptor. Gurantees
+ * Sends an int via the socket at the given file descriptor. Guarantees
  * network byte order.
  * 
  * fd: the file descriptor for the socket
