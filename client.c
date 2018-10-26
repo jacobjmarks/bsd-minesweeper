@@ -80,7 +80,7 @@ void recv_int_check(int fd, uint32_t* response) {
  * message: the string to be sent
  */
 void send_string_check(int fd, int protocol, char* message) {
-    char* packet = calloc(strlen(message) + 1, sizeof(char));
+    char* packet = calloc(sizeof(message) + 1, sizeof(char));
     packet[0] = itoc(protocol);
     strcat(packet, message);
     int bytes_sent = send_string(fd, packet);
@@ -189,8 +189,7 @@ int option(int* x, int* y) {
     do {
         printf("Select position: ");
         scanf("%2s", position);
-        while (getchar() != '\n')
-            ;
+        while (getchar() != '\n');
         *x = ctoi(position[1]) - 1;
         *y = itoascii(position[0]);
     } while (!valid_coord(*x, *y));
@@ -221,7 +220,7 @@ int game(int fd) {
     // Query next move until user quits
     while ((protocol = option(&x_pos, &y_pos)) != QUIT) {
         // Tell the server the user's move
-        char pos_request[] = {itoc(x_pos), itoc(y_pos)};
+        char pos_request[3] = {itoc(x_pos), itoc(y_pos)};
         send_string_check(fd, protocol, pos_request);
 
         // Get the first response from the server. Interpret the
@@ -229,36 +228,38 @@ int game(int fd) {
         // or revealed.
         recv_string_check(fd, &response);
         switch (protocol) {
-        case FLAG_TILE:
-            // There was no mine
-            if (response[0] == TERMINATOR) {
-                printf("\nNo mine at that position!\n");
-            }
-            // User correctly flagged a mine
-            else {
-                recv_int_check(fd, &gs.remaining_mines);
-                update_tile(&gs, x_pos, y_pos, FLAG);
-            }
-            break;
-        case REVEAL_TILE:
-            // Reveal all tiles the server sends back
-            while (response[0] != TERMINATOR) {
-                char response_x = ctoi(response[0]);
-                char response_y = ctoi(response[1]);
-                char response_char = response[2];
-                // Game is over if the server sends a mine.
-                if (response_char == MINE) {
-                    gameover = true;
+            case FLAG_TILE:
+                // There was no mine
+                if (response[0] == TERMINATOR) {
+                    printf("\nNo mine at that position!\n");
                 }
-                update_tile(&gs, response_x, response_y, response_char);
-                recv_string_check(fd, &response);
-            }
+                // User correctly flagged a mine
+                else {
+                    recv_int_check(fd, &gs.remaining_mines);
+                    update_tile(&gs, x_pos, y_pos, FLAG);
+                }
+                break;
+            case REVEAL_TILE:
+                // Reveal all tiles the server sends back
+                while (response[0] != TERMINATOR) {
+                    char response_x = ctoi(response[0]);
+                    char response_y = ctoi(response[1]);
+                    char response_char = response[2];
+                    // Game is over if the server sends a mine.
+                    if (response_char == MINE) {
+                        gameover = true;
+                    }
+                    update_tile(&gs, response_x, response_y, response_char);
+                    free(response);
+                    recv_string_check(fd, &response);
+                }
 
-            break;
-        default:
-            printf("Client protocol error! Consult programmers!\n");
-            break;
+                break;
+            default:
+                printf("Client protocol error! Consult programmers!\n");
+                break;
         }
+        free(response);
         draw_field(&gs);
         if (gs.remaining_mines == 0) {
             uint32_t game_time;
@@ -382,6 +383,10 @@ void leaderboard(int fd) {
     printf("============================================================\n");
 
     // Cleanup
+    for (uint32_t i = 0; i < num_users; i++) {
+        free(game_times[i]);
+        free(names[i]);
+    }
     free(highscores);
 }
 
@@ -432,13 +437,13 @@ int login(const char* ip, int port) {
 
     // Request login credentials from user
     printf("Please login.\n");
-    char username[10];
-    char password[10];
+    char username[10] = {0};
+    char password[10] = {0};
     printf("Enter your username: ");
-    scanf(" %10s", username);
+    scanf(" %9s", username);
     printf("Enter your password: ");
-    scanf(" %10s", password);
-    char credentials[22];
+    scanf(" %9s", password);
+    char credentials[22] = {0};
     sprintf(credentials, "%s:%s", username, password);
 
     // Send login credentials to server
@@ -474,6 +479,8 @@ int main(int argc, char* argv[]) {
     int selection;
     // Present main menu to client until they quit (menu option 3)
     do {
+        selection = 0;
+
         printf("\nWelcome to the Minesweeper gaming system.\n\n"
                "Please enter a selection:\n"
                "<1> Play Minesweeper\n"
