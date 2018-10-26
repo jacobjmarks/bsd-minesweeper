@@ -277,8 +277,8 @@ int game(int fd) {
 }
 
 /**
- * Compares two leaderboard rows to determine their relative position with respect
- * to the following ordering (from the spec):
+ * Compares two leaderboard rows to determine their relative position with
+ * respect to the following ordering (from the spec):
  *
  * Highs scores are displayed in descending order of the number of seconds each
  * successful game took to complete. If two or more games have the same number
@@ -287,18 +287,18 @@ int game(int fd) {
  * same number of seconds by players with the same number of games won then
  * display those games by the names of their players in alphabetical order.
  *
- * LeaderboardRow_a: A pointer to a LeaderboardRow_t, to be compared
- *                   against LeaderboardRow_b.
- * LeaderboardRow_b: A pointer to a LeaderboardRow_t, to be compared
- *                   against LeaderboardRow_a.
+ * row_a: A pointer to a LeaderboardRow_t, to be compared
+ *                   against row_b.
+ * row_b: A pointer to a LeaderboardRow_t, to be compared
+ *                   against row_a.
  *
- * returns: an int representing the position of LeaderboardRow_a relative to
- * LeaderboardRow_b, with respect to the ordering described above.
+ * returns: an int representing the position of row_a relative to
+ * row_b, with respect to the ordering described above.
  *
  */
-int compare_leaderboard_rows(const void* LeaderboardRow_a, const void* LeaderboardRow_b) {
-    LeaderboardRow_t* a = (LeaderboardRow_t*)LeaderboardRow_a;
-    LeaderboardRow_t* b = (LeaderboardRow_t*)LeaderboardRow_b;
+int compare_leaderboard_rows(const void* row_a, const void* row_b) {
+    LeaderboardRow_t* a = (LeaderboardRow_t*)row_a;
+    LeaderboardRow_t* b = (LeaderboardRow_t*)row_b;
     if (a->game_time > b->game_time) {
         return -1;
     } else if (a->game_time < b->game_time) {
