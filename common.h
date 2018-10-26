@@ -10,7 +10,7 @@
 #define itoc(i) (i+'0')
 #define itoascii(i) (((int)i) - 65)
 
-#define DEBUG 1
+#define DEBUG 0
 
 enum { LOGIN=1, PLAY, LEADERBOARD, QUIT, LOSE, WIN, REVEAL_TILE, FLAG_TILE, QUEUED };
 
