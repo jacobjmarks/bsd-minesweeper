@@ -33,7 +33,7 @@ void on_interupt(int);
  */
 int main(int argc, char* argv[]) {
     signal(SIGINT, on_interupt);    
-    srand(time(NULL));
+    srand(42);
 
     int port = (argc == 2) ? atoi(argv[1]) : DEFAULT_PORT;
     if (!port) {
