@@ -30,9 +30,9 @@ typedef struct GameState {
 
 typedef struct HighScore {
     char* name;
-    int best_time;
-    int games_won;
-    int games_played;
+    uint32_t game_time;
+    uint32_t games_won;
+    uint32_t games_played;
 } HighScore_t;
 
 /**
@@ -178,8 +178,7 @@ int option(int* x, int* y) {
     do {
         printf("Select option <P, R, Q>: ");
         scanf("%c", &option);
-        while (getchar() != '\n')
-            ;
+        while (getchar() != '\n');
 
         if (option == 'Q') {
             return QUIT;
@@ -262,7 +261,9 @@ int game(int fd) {
         }
         draw_field(&gs);
         if (gs.remaining_mines == 0) {
-            printf("You won!!!\n");
+            uint32_t game_time;
+            recv_int_check(fd, &game_time);
+            printf("You won in %d seconds!!!\n", game_time);
             return WIN;
         }
         if (gameover) {
@@ -295,9 +296,9 @@ int game(int fd) {
 int compare_highscores(const void* highscore_a, const void* highscore_b) {
     HighScore_t* a = (HighScore_t*)highscore_a;
     HighScore_t* b = (HighScore_t*)highscore_b;
-    if (a->best_time > b->best_time) {
+    if (a->game_time > b->game_time) {
         return -1;
-    } else if (a->best_time < b->best_time) {
+    } else if (a->game_time < b->game_time) {
         return 1;
     }
 
@@ -321,39 +322,66 @@ void leaderboard(int fd) {
     send_int_check(fd, LEADERBOARD);
 
     // Get leaderboard size from server
-    uint32_t size;
-    recv_int_check(fd, &size);
+    uint32_t num_users;
+    recv_int_check(fd, &num_users);
 
     // If leaderboard is empty, tell the user
-    if (size == 0) {
+    if (num_users == 0) {
         printf(
             "============================================================\n"
             "There is no information currently stored in the leaderboard."
             "Try again later.\n"
             "============================================================\n");
+        return;
     }
 
-    // Get an unordered list of highscores from the server
-    HighScore_t* highscores = malloc(sizeof(HighScore_t) * size);
-    char* response;
-    for (int i = 0; i < size; i++) {
-        recv_string_check(fd, &response);
-        highscores[i].name = strtok(response, DELIM);
-        highscores[i].best_time = atoi(strtok(NULL, DELIM));
-        highscores[i].games_won = atoi(strtok(NULL, DELIM));
-        highscores[i].games_played = atoi(strtok(NULL, DELIM));
+
+    char* names[num_users];
+    uint32_t games_played[num_users];
+    uint32_t games_won[num_users];
+    uint32_t* game_times[num_users];
+
+    uint32_t num_rows = 0;
+    for (uint32_t i = 0; i < num_users; i++) {
+        recv_string_check(fd, names + i);
+        recv_int_check(fd, games_played + i);
+        recv_int_check(fd, games_won + i);
+ 
+        num_rows += games_won[i];
+
+        game_times[i] = malloc(games_won[i] * sizeof(uint32_t));
+        
+        for (uint32_t t = 0; t < games_won[i]; t++) {
+            recv_int_check(fd, game_times[i] + t);
+        }
     }
+
+    HighScore_t* highscores = malloc(sizeof(HighScore_t) * num_rows);
+
+    int row_index = 0;
+    for (uint32_t user_index = 0; user_index < num_users; user_index++) {
+        for (uint32_t time_index = 0; time_index < games_won[user_index]; time_index++) {
+            highscores[row_index].name = names[user_index];
+            highscores[row_index].games_played = games_played[user_index];
+            highscores[row_index].games_won = games_won[user_index];
+            highscores[row_index].game_time = game_times[user_index][time_index];
+            row_index++;
+        }
+    }
+
     // Cleanup
-    free(response);
+    // for (uint32_t i = 0; i < num_rows; i++) {
+    //     free(game_times[i]);
+    // }
 
     // Sort the highscores
-    qsort(highscores, size, sizeof(*highscores), &compare_highscores);
+    qsort(highscores, num_rows, sizeof(*highscores), &compare_highscores);
 
-    // Print the ordered high scores
+    // Display the ordered high scores
     printf("============================================================\n");
-    for (int i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < num_rows; i++) {
         printf("%-10s \t %10d seconds \t %d games won, %d games played\n",
-               highscores[i].name, highscores[i].best_time,
+               highscores[i].name, highscores[i].game_time,
                highscores[i].games_won, highscores[i].games_played);
     }
     printf("============================================================\n");
@@ -462,14 +490,14 @@ int main(int argc, char* argv[]) {
         while (getchar() != '\n');
 
         switch (selection) {
-        // Play (menu option 1)
-        case 1:
-            game(fd);
-            break;
-        // Leaderboard (menu option 2)
-        case 2:
-            leaderboard(fd);
-            break;
+            // Play (menu option 1)
+            case 1:
+                game(fd);
+                break;
+            // Leaderboard (menu option 2)
+            case 2:
+                leaderboard(fd);
+                break;
         }
     } while (selection != 3);
 
