@@ -8,5 +8,6 @@
 void play_game(ClientSession_t*);
 HighScore_t* get_highscore(char*);
 void stream_leaderboard(int);
+void free_leaderboard();
 
 #endif

@@ -73,6 +73,8 @@ void play_game(ClientSession_t* session) {
             default:
                 break;
         }
+
+        free(request);
     }
 
     free(session->gamestate);
@@ -133,6 +135,20 @@ HighScore_t* get_highscore(char* user) {
     strcpy(score->user, user);
 
     return previous->next = score;
+}
+
+/**
+ * Free the memory of the entire leaderboard.
+ */
+void free_leaderboard() {
+    HighScore_t* previous;
+    HighScore_t* score = leaderboard;
+    while (score != NULL) {
+        previous = score;
+        score = score->next;
+        free(previous->times);
+        free(previous);
+    }
 }
 
 /* -------------------------------- PRIVATE --------------------------------- */

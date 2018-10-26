@@ -119,6 +119,8 @@ void stop_listening() {
     for (int i = 0; i < NUM_CLIENT_THREADS; i++) {
         if ((client_fd = served_clients[i])) shutdown(client_fd, SHUT_RDWR);
     }
+
+    free_leaderboard();
 }
 
 /* -------------------------------- PRIVATE --------------------------------- */
