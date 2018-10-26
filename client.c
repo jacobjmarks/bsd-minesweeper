@@ -189,8 +189,7 @@ int option(int* x, int* y) {
     do {
         printf("Select position: ");
         scanf("%2s", position);
-        while (getchar() != '\n')
-            ;
+        while (getchar() != '\n');
         *x = ctoi(position[1]) - 1;
         *y = itoascii(position[0]);
     } while (!valid_coord(*x, *y));
@@ -251,7 +250,6 @@ int game(int fd) {
                         gameover = true;
                     }
                     update_tile(&gs, response_x, response_y, response_char);
-                    
                     free(response);
                     recv_string_check(fd, &response);
                 }
@@ -261,9 +259,7 @@ int game(int fd) {
                 printf("Client protocol error! Consult programmers!\n");
                 break;
         }
-
         free(response);
-
         draw_field(&gs);
         if (gs.remaining_mines == 0) {
             uint32_t game_time;
