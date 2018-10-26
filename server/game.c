@@ -286,6 +286,7 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
         session->score->games_won++;
         if (session->score->games_won == 1) leaderboard_size++;
         time_t elapsed = time(NULL) - session->gamestate->start_time;
+        send_int(session->fd, elapsed);
         session->score->times = realloc(session->score->times, sizeof(int) * session->score->games_won);
         session->score->times[session->score->games_won - 1] = elapsed;
     }
