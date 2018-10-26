@@ -28,12 +28,12 @@ typedef struct GameState {
     uint32_t remaining_mines;
 } GameState_t;
 
-typedef struct HighScore {
+typedef struct LeaderboardRow {
     char* name;
     uint32_t game_time;
     uint32_t games_won;
     uint32_t games_played;
-} HighScore_t;
+} LeaderboardRow_t;
 
 /**
  * Reports a connection failure to the user and terminates the client.
@@ -277,7 +277,7 @@ int game(int fd) {
 }
 
 /**
- * Compares two high scores to determine their relative position with respect
+ * Compares two leaderboard rows to determine their relative position with respect
  * to the following ordering (from the spec):
  *
  * Highs scores are displayed in descending order of the number of seconds each
@@ -287,16 +287,18 @@ int game(int fd) {
  * same number of seconds by players with the same number of games won then
  * display those games by the names of their players in alphabetical order.
  *
- * highscore_a: A pointer to a HighScore_t, to be compared against highscore_b.
- * highscore_b: A pointer to a HighScore_t, to be compared against highscore_a.
+ * LeaderboardRow_a: A pointer to a LeaderboardRow_t, to be compared
+ *                   against LeaderboardRow_b.
+ * LeaderboardRow_b: A pointer to a LeaderboardRow_t, to be compared
+ *                   against LeaderboardRow_a.
  *
- * returns: an int representing the position of highscore_a relative to
- * highscore_b, with respect to the ordering described above.
+ * returns: an int representing the position of LeaderboardRow_a relative to
+ * LeaderboardRow_b, with respect to the ordering described above.
  *
  */
-int compare_highscores(const void* highscore_a, const void* highscore_b) {
-    HighScore_t* a = (HighScore_t*)highscore_a;
-    HighScore_t* b = (HighScore_t*)highscore_b;
+int compare_leaderboard_rows(const void* LeaderboardRow_a, const void* LeaderboardRow_b) {
+    LeaderboardRow_t* a = (LeaderboardRow_t*)LeaderboardRow_a;
+    LeaderboardRow_t* b = (LeaderboardRow_t*)LeaderboardRow_b;
     if (a->game_time > b->game_time) {
         return -1;
     } else if (a->game_time < b->game_time) {
@@ -356,29 +358,28 @@ void leaderboard(int fd) {
         }
     }
 
-    HighScore_t* highscores = malloc(sizeof(HighScore_t) * num_rows);
+    LeaderboardRow_t* leaderboard = malloc(sizeof(LeaderboardRow_t) * num_rows);
 
-    int row_index = 0;
-    for (uint32_t user_index = 0; user_index < num_users; user_index++) {
-        for (uint32_t time_index = 0; time_index < games_won[user_index]; time_index++) {
-            // printf("Creating struct at row_index %d\n", row_index);
-            highscores[row_index].name = names[user_index];
-            highscores[row_index].games_played = games_played[user_index];
-            highscores[row_index].games_won = games_won[user_index];
-            highscores[row_index].game_time = game_times[user_index][time_index];
-            row_index++;
+    int row = 0;
+    for (uint32_t user = 0; user < num_users; user++) {
+        for (uint32_t t = 0; t < games_won[user]; t++) {
+            leaderboard[row].name = names[user];
+            leaderboard[row].games_played = games_played[user];
+            leaderboard[row].games_won = games_won[user];
+            leaderboard[row].game_time = game_times[user][t];
+            row++;
         }
     }
 
-    // Sort the highscores
-    qsort(highscores, num_rows, sizeof(*highscores), &compare_highscores);
+    // Sort the leaderboard
+    qsort(leaderboard, num_rows, sizeof(*leaderboard), &compare_leaderboard_rows);
 
-    // Display the ordered high scores
+    // Display the ordered leaderboard
     printf("============================================================\n");
     for (uint32_t i = 0; i < num_rows; i++) {
-        printf("%-10s \t %10d seconds \t %d games won, %d games played\n",
-               highscores[i].name, highscores[i].game_time,
-               highscores[i].games_won, highscores[i].games_played);
+        printf("%-8s \t %8d seconds \t %d games won, %d games played\n",
+               leaderboard[i].name, leaderboard[i].game_time,
+               leaderboard[i].games_won, leaderboard[i].games_played);
     }
     printf("============================================================\n");
 
@@ -387,7 +388,7 @@ void leaderboard(int fd) {
         free(game_times[i]);
         free(names[i]);
     }
-    free(highscores);
+    free(leaderboard);
 }
 
 /**
