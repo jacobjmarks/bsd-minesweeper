@@ -88,13 +88,14 @@ void* handle_client_queue(void* data) {
 
             pthread_mutex_unlock(&mutex);
             ClientSession_t* session = create_client_session(tid, fd);
-            pthread_mutex_lock(&mutex);
-            session->score = get_highscore(session->user);
-            pthread_mutex_unlock(&mutex);
+            if (session) {
+                pthread_mutex_lock(&mutex);
+                session->score = get_highscore(session->user);
+                pthread_mutex_unlock(&mutex);
 
-            serve_client(session);
-            free(session);
-            
+                serve_client(session);
+                free(session);                
+            }
             pthread_mutex_lock(&mutex);
 
             served_clients[tid] = 0;            
