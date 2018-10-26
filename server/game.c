@@ -18,7 +18,7 @@
 #include "game.h"
 
 HighScore_t* leaderboard;
-int leaderboard_size = 0;
+_Atomic int leaderboard_size = 0;
 
 /* -------------------------- FORWARD DECLARATIONS -------------------------- */
 

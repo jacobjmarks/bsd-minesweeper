@@ -20,9 +20,9 @@ typedef struct GameState {
 
 typedef struct HighScore {
     char user[32];
-    int* times;
-    int games_won;
-    int games_played;
+    _Atomic int* times;
+    _Atomic int games_won;
+    _Atomic int games_played;
     struct HighScore* next;
 } HighScore_t;
 
