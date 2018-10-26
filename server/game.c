@@ -29,6 +29,7 @@ void reveal_tile(int, int, ClientSession_t*);
 void reveal_and_traverse(int, int, GameState_t*);
 void stream_tiles(ClientSession_t*);
 void flag_tile(int, int, ClientSession_t*);
+void win_game(ClientSession_t*);
 void lose_game(ClientSession_t*);
 void send_terminator(int);
 
@@ -297,15 +298,24 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
 
     tile->sent = true;
     
-    if (!session->gamestate->mines_remaining) {
-        session->gamestate->game_over = true;
-        session->score->games_won++;
-        if (session->score->games_won == 1) leaderboard_size++;
-        time_t elapsed = time(NULL) - session->gamestate->start_time;
-        send_int(session->fd, elapsed);
-        session->score->times = realloc(session->score->times, sizeof(int) * session->score->games_won);
-        session->score->times[session->score->games_won - 1] = elapsed;
-    }
+    if (!session->gamestate->mines_remaining) win_game(session);
+}
+
+/**
+ * Completes the neccessary actions when losing a game of Minesweeper. Including
+ * setting the session's gameover state and both storing and notifying the
+ * client of their completion time.
+ */
+void win_game(ClientSession_t* session) {
+    session->gamestate->game_over = true;
+
+    HighScore_t* score = session->score;
+    if (++score->games_won == 1) leaderboard_size++;
+
+    time_t elapsed = time(NULL) - session->gamestate->start_time;
+    score->times = realloc(score->times, sizeof(int) * score->games_won);
+    score->times[score->games_won - 1] = elapsed;
+    send_int(session->fd, elapsed);
 }
 
 /**
