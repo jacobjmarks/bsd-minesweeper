@@ -67,6 +67,8 @@ int client_login(int fd, char* user) {
         
         printf("Responding: %d\n", authenticated);
         send_int(fd, authenticated);
+
+        free(request);
     }
 
     return strlen(user) ? 0 : 1;
