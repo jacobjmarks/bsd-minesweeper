@@ -82,20 +82,24 @@ void play_game(ClientSession_t* session) {
  * Streams all leaderboard entries to the provided socket.
  */
 void stream_leaderboard(int fd) {
+    printf("Streaming leaderboard of size %d\n", leaderboard_size);
     send_int(fd, leaderboard_size);
 
     HighScore_t* score = leaderboard;
     while (score != NULL) {
-        char message[48];
-        sprintf(message, "%s,%d,%d,%d",
-            score->user,
-            score->best_time,
-            score->games_won,
-            score->games_played
-        );
+        if (!score->games_won) {
+            score = score->next;
+            continue;
+        }
 
-        printf("Responding: %s\n", message);
-        send_string(fd, message);
+        send_string(fd, score->user);
+        send_int(fd, score->games_played);
+        send_int(fd, score->games_won);
+        
+        for (int i = 0; i < score->games_won; i++) {
+            send_int(fd, score->times[i]);
+        }
+
         score = score->next;
     }
 }
@@ -110,8 +114,6 @@ HighScore_t* get_highscore(char* user) {
     if (!leaderboard) {
         leaderboard = calloc(1, sizeof(HighScore_t));
         strcpy(leaderboard->user, user);
-        leaderboard->best_time = 999;
-        leaderboard_size++;
         return leaderboard;
     }
 
@@ -129,8 +131,6 @@ HighScore_t* get_highscore(char* user) {
     // Create new entry if user not found
     score = calloc(1, sizeof(HighScore_t));
     strcpy(score->user, user);
-    score->best_time = 999;
-    leaderboard_size++;
 
     return previous->next = score;
 }
@@ -284,10 +284,10 @@ void flag_tile(int pos_x, int pos_y, ClientSession_t* session) {
     if (!session->gamestate->mines_remaining) {
         session->gamestate->game_over = true;
         session->score->games_won++;
+        if (session->score->games_won == 1) leaderboard_size++;
         time_t elapsed = time(NULL) - session->gamestate->start_time;
-        if (elapsed < session->score->best_time) {
-            session->score->best_time = elapsed;
-        }
+        session->score->times = realloc(session->score->times, sizeof(int) * session->score->games_won);
+        session->score->times[session->score->games_won - 1] = elapsed;
     }
 }
 
