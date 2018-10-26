@@ -377,7 +377,7 @@ void leaderboard(int fd) {
     // Display the ordered leaderboard
     printf("============================================================\n");
     for (uint32_t i = 0; i < num_rows; i++) {
-        printf("%-8s \t %8d seconds \t %d games won, %d games played\n",
+        printf("%-8s \t %4d seconds \t %d games won, %d games played\n",
                leaderboard[i].name, leaderboard[i].game_time,
                leaderboard[i].games_won, leaderboard[i].games_played);
     }
