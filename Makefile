@@ -1,6 +1,8 @@
 CC = gcc
 CFLAGS = -Wall
 
+.PHONY: server client
+
 all: server client
 
 server: server/server.c server/clients.c server/auth.c server/game.c common.c
