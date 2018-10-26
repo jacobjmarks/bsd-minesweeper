@@ -348,7 +348,6 @@ void leaderboard(int fd) {
         recv_int_check(fd, games_won + i);
  
         num_rows += games_won[i];
-
         game_times[i] = malloc(games_won[i] * sizeof(uint32_t));
         
         for (uint32_t t = 0; t < games_won[i]; t++) {
@@ -361,6 +360,7 @@ void leaderboard(int fd) {
     int row_index = 0;
     for (uint32_t user_index = 0; user_index < num_users; user_index++) {
         for (uint32_t time_index = 0; time_index < games_won[user_index]; time_index++) {
+            // printf("Creating struct at row_index %d\n", row_index);
             highscores[row_index].name = names[user_index];
             highscores[row_index].games_played = games_played[user_index];
             highscores[row_index].games_won = games_won[user_index];
@@ -368,11 +368,6 @@ void leaderboard(int fd) {
             row_index++;
         }
     }
-
-    // Cleanup
-    // for (uint32_t i = 0; i < num_rows; i++) {
-    //     free(game_times[i]);
-    // }
 
     // Sort the highscores
     qsort(highscores, num_rows, sizeof(*highscores), &compare_highscores);
