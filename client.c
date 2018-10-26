@@ -360,7 +360,7 @@ void leaderboard(int fd) {
     int row_index = 0;
     for (uint32_t user_index = 0; user_index < num_users; user_index++) {
         for (uint32_t time_index = 0; time_index < games_won[user_index]; time_index++) {
-            printf("Creating struct at row_index %d\n", row_index);
+            // printf("Creating struct at row_index %d\n", row_index);
             highscores[row_index].name = names[user_index];
             highscores[row_index].games_played = games_played[user_index];
             highscores[row_index].games_won = games_won[user_index];
