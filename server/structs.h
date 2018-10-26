@@ -20,7 +20,7 @@ typedef struct GameState {
 
 typedef struct HighScore {
     char user[32];
-    int best_time;
+    int* times;
     int games_won;
     int games_played;
     struct HighScore* next;
